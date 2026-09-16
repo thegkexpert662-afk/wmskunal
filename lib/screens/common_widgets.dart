@@ -26,7 +26,11 @@ class PageHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actions.isNotEmpty) Padding(padding: const EdgeInsets.only(left: 12), child: Wrap(spacing: 8, runSpacing: 8, children: actions)),
+        if (actions.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ),
       ],
     );
   }
@@ -47,7 +51,12 @@ class SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Row(children: <Widget>[Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900))), if (trailing != null) trailing!]),
+            Row(
+              children: <Widget>[
+                Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+                if (trailing != null) trailing!,
+              ],
+            ),
             const SizedBox(height: 12),
             child,
           ],
@@ -59,6 +68,7 @@ class SectionCard extends StatelessWidget {
 
 class SummaryCards extends StatelessWidget {
   final List<List<String>> items;
+
   const SummaryCards({super.key, required this.items});
 
   @override
@@ -69,19 +79,24 @@ class SummaryCards extends StatelessWidget {
         return Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: items.map((List<String> item) => SizedBox(
-            width: width,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(15),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-                  Text(item[0], style: const TextStyle(fontSize: 11, color: Color(0xFF74868E))),
-                  const SizedBox(height: 4),
-                  Text(item[1], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: wmsDark)),
-                ]),
+          children: items.map((List<String> item) {
+            return SizedBox(
+              width: width,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(item[0], style: const TextStyle(fontSize: 11, color: Color(0xFF74868E))),
+                      const SizedBox(height: 4),
+                      Text(item[1], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: wmsDark)),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          )).toList(),
+            );
+          }).toList(),
         );
       },
     );
@@ -90,6 +105,7 @@ class SummaryCards extends StatelessWidget {
 
 class StatusBadge extends StatelessWidget {
   final String text;
+
   const StatusBadge(this.text, {super.key});
 
   @override
@@ -121,13 +137,20 @@ class DataTableCard extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all<Color>(wmsPale),
-          columns: headers.map((String header) => DataColumn(label: Text(header, style: const TextStyle(fontWeight: FontWeight.w800)))).toList(),
-          rows: rows.map((List<String> row) => DataRow(
-            cells: List<DataCell>.generate(row.length, (int index) => DataCell(
-              statusColumns.contains(index) ? StatusBadge(row[index]) : Text(row[index], style: const TextStyle(fontSize: 12)),
-            )),
-          )).toList(),
+          headingRowColor: MaterialStateProperty.all<Color>(wmsPale),
+          columns: headers.map((String header) {
+            return DataColumn(label: Text(header, style: const TextStyle(fontWeight: FontWeight.w800)));
+          }).toList(),
+          rows: rows.map((List<String> row) {
+            return DataRow(
+              cells: List<DataCell>.generate(row.length, (int index) {
+                final Widget value = statusColumns.contains(index)
+                    ? StatusBadge(row[index])
+                    : Text(row[index], style: const TextStyle(fontSize: 12));
+                return DataCell(value);
+              }),
+            );
+          }).toList(),
         ),
       ),
     );
