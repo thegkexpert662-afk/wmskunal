@@ -1,0 +1,10 @@
+import 'package:flutter/material.dart';
+import 'common_widgets.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+  @override
+  Widget build(BuildContext context) => ScreenFrame(title: 'Dashboard', subtitle: 'Warehouse activity overview and operational control center.', child: Column(children: [SummaryCards(items: const [['Total Clients', '24'], ['Warehouses', '08'], ['Today Inbound', '128'], ['Today Outbound', '96']]), const SizedBox(height: 18), LayoutBuilder(builder: (_, c) => c.maxWidth < 850 ? Column(children: [_operations(), const SizedBox(height: 18), _orders()]) : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _operations()), const SizedBox(width: 18), Expanded(child: _orders())])), const SizedBox(height: 18), const SectionCard(title: 'Inventory Snapshot', child: SummaryCards(items: [['Stock Items', '12,840'], ['Low Stock', '16'], ['Quality Hold', '09'], ['Available Qty', '1,284']]))]));
+  Widget _operations() => const SectionCard(title: 'Warehouse Operations', child: Column(children: [ListTile(leading: Icon(Icons.move_to_inbox_outlined, color: wmsBlue), title: Text('Inbound / GRN'), trailing: Text('128')), ListTile(leading: Icon(Icons.shopping_cart_outlined, color: wmsBlue), title: Text('Pending Orders'), trailing: Text('42')), ListTile(leading: Icon(Icons.playlist_add_check_outlined, color: wmsBlue), title: Text('Picking In Progress'), trailing: Text('31')), ListTile(leading: Icon(Icons.local_shipping_outlined, color: wmsBlue), title: Text('Dispatch Ready'), trailing: Text('18'))]));
+  Widget _orders() => const SectionCard(title: 'Recent Orders', child: Column(children: [ListTile(title: Text('ORD-10284'), subtitle: Text('ABC Industries'), trailing: StatusBadge('Processing')), ListTile(title: Text('ORD-10283'), subtitle: Text('Metro Retail'), trailing: StatusBadge('Picking')), ListTile(title: Text('ORD-10282'), subtitle: Text('Prime Traders'), trailing: StatusBadge('Dispatched')), ListTile(title: Text('ORD-10281'), subtitle: Text('Global Parts'), trailing: StatusBadge('Pending'))]));
+}
