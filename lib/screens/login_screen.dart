@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'wms_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -9,24 +10,25 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController email = TextEditingController();
+  final TextEditingController username = TextEditingController();
   final TextEditingController password = TextEditingController();
 
-  bool client = false;
-  bool obscure = true;
+  bool isClient = false;
+  bool obscurePassword = true;
+  bool rememberMe = false;
 
   @override
   void dispose() {
-    email.dispose();
+    username.dispose();
     password.dispose();
     super.dispose();
   }
 
   void login() {
-    if (email.text.trim().isEmpty || password.text.isEmpty) {
+    if (username.text.trim().isEmpty || password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Email and password are required.'),
+          content: Text('Username and password are required.'),
         ),
       );
       return;
@@ -35,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => WmsShell(clientMode: client),
+        builder: (_) => WmsShell(clientMode: isClient),
       ),
     );
   }
@@ -43,166 +45,451 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool compact = constraints.maxWidth < 850;
+      backgroundColor: const Color(0xFFF5F8FC),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool compact = constraints.maxWidth < 900;
 
-          return Row(
-            children: [
-              if (!compact)
+            if (compact) {
+              return _mobileLogin();
+            }
+
+            return Row(
+              children: [
                 Expanded(
                   flex: 5,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF087FA9),
-                          Color(0xFF064F70),
-                        ],
+                  child: _brandingPanel(),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: _loginPanel(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _brandingPanel() {
+    return Container(
+      margin: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFEAF5FF),
+            Color(0xFFDCEEFF),
+          ],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 42),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _kopersayBrand(large: true),
+            const Spacer(),
+            Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 560),
+                padding: const EdgeInsets.all(34),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.48),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.warehouse_rounded,
+                      size: 150,
+                      color: Color(0xFF1769D5),
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'Warehouse Management System',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF17345E),
+                        fontSize: 25,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(55),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.warehouse_rounded,
-                            color: Colors.white,
-                            size: 70,
-                          ),
-                          SizedBox(height: 22),
-                          Text(
-                            'KOPERSAY WMS',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 38,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Warehouse Management System',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 18,
-                            ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Inventory • Inward • Outward • Dispatch • Reports',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF55708F),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                _feature(Icons.inventory_2_outlined, 'Inventory'),
+                _feature(Icons.local_shipping_outlined, 'Inward & Outward'),
+                _feature(Icons.bar_chart_outlined, 'Real-time Reports'),
+                _feature(Icons.security_outlined, 'Secure Access'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _kopersayBrand({bool large = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: large ? 58 : 48,
+          height: large ? 58 : 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0B5FE8), Color(0xFF10C6E8)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0B5FE8).withValues(alpha: 0.18),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.all_inclusive_rounded,
+            color: Colors.white,
+            size: large ? 36 : 30,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'KOPERSAY',
+              style: TextStyle(
+                color: const Color(0xFF123F8A),
+                fontSize: large ? 30 : 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            Text(
+              'TECHNOLOGIES',
+              style: TextStyle(
+                color: const Color(0xFF159FD4),
+                fontSize: large ? 11 : 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: large ? 3.0 : 2.4,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _feature(IconData icon, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF1769D5), size: 27),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF38516E),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loginPanel() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 510),
+          child: Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: const BorderSide(color: Color(0xFFE3EAF2)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(42),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: 'English',
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'English',
+                            child: Text('English'),
                           ),
                         ],
+                        onChanged: (_) {},
                       ),
                     ),
                   ),
-                ),
-              Expanded(
-                flex: 4,
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 430),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(28),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.warehouse_rounded,
-                                color: Color(0xFF0B8FBD),
-                                size: 48,
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'Welcome Back',
-                                style: TextStyle(
-                                  fontSize: 27,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                client ? 'Client Portal Login' : 'Admin Login',
-                                style: const TextStyle(
-                                  color: Color(0xFF70858F),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              SegmentedButton<bool>(
-                                segments: const [
-                                  ButtonSegment<bool>(
-                                    value: false,
-                                    label: Text('Admin'),
-                                  ),
-                                  ButtonSegment<bool>(
-                                    value: true,
-                                    label: Text('Client'),
-                                  ),
-                                ],
-                                selected: {client},
-                                onSelectionChanged: (values) {
-                                  setState(() {
-                                    client = values.first;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 18),
-                              TextField(
-                                controller: email,
-                                decoration: const InputDecoration(
-                                  labelText: 'Email',
-                                  prefixIcon: Icon(Icons.email_outlined),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: password,
-                                obscureText: obscure,
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        obscure = !obscure;
-                                      });
-                                    },
-                                    icon: Icon(
-                                      obscure
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: FilledButton.icon(
-                                  onPressed: login,
-                                  icon: const Icon(Icons.login),
-                                  label: const Text('Sign In'),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Center(
-                                child: TextButton(
-                                  onPressed: () {},
-                                  child: const Text('Forgot password?'),
-                                ),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: 12),
+                  _kopersayBrand(),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Welcome Back!',
+                    style: const TextStyle(
+                      color: Color(0xFF10284A),
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isClient
+                        ? 'Sign in to continue to your client portal'
+                        : 'Sign in to continue to your admin / staff account',
+                    style: const TextStyle(
+                      color: Color(0xFF718198),
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  _roleSelector(),
+                  const SizedBox(height: 28),
+                  _label('Username'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: username,
+                    decoration: _inputDecoration(
+                      hint: 'Enter username',
+                      icon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _label('Password'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: password,
+                    obscureText: obscurePassword,
+                    decoration: _inputDecoration(
+                      hint: 'Enter password',
+                      icon: Icons.lock_outline,
+                      suffix: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: rememberMe,
+                        onChanged: (value) {
+                          setState(() {
+                            rememberMe = value ?? false;
+                          });
+                        },
+                      ),
+                      const Text('Remember me'),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text('Forgot Password?'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: login,
+                      icon: const Icon(Icons.lock_open_outlined),
+                      label: Text(isClient ? 'Login as Client' : 'Login as Admin / Staff'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      isClient
+                          ? 'Client access is restricted to your company data.'
+                          : 'Admin / Staff access is controlled by assigned roles.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF8492A6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  const Center(
+                    child: Text(
+                      '© 2026 KOPERSAY TECHNOLOGIES. All rights reserved.',
+                      style: TextStyle(
+                        color: Color(0xFF8B98A9),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _roleSelector() {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4F9),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _roleButton(false, 'Admin / Staff', Icons.admin_panel_settings_outlined)),
+          Expanded(child: _roleButton(true, 'Client', Icons.business_outlined)),
+        ],
+      ),
+    );
+  }
+
+  Widget _roleButton(bool client, String label, IconData icon) {
+    final bool selected = isClient == client;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () {
+        setState(() {
+          isClient = client;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: selected
+                  ? const Color(0xFF1264D8)
+                  : const Color(0xFF6F8096),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected
+                      ? const Color(0xFF123F8A)
+                      : const Color(0xFF65758A),
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF182C47),
+        fontWeight: FontWeight.w700,
+        fontSize: 14,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: const Color(0xFF65758A)),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD5DEE9)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD5DEE9)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF1769D5), width: 1.5),
+      ),
+    );
+  }
+
+  Widget _mobileLogin() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          const SizedBox(height: 14),
+          _kopersayBrand(large: true),
+          const SizedBox(height: 26),
+          _loginPanel(),
+        ],
       ),
     );
   }
