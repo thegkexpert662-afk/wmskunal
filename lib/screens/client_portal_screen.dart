@@ -36,26 +36,21 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
               _summaryCards(compact),
               const SizedBox(height: 16),
               if (compact)
-                Column(
-                  children: [
-                    _profileCard(),
-                    const SizedBox(height: 14),
-                    _quickActions(),
-                    const SizedBox(height: 14),
-                    _recentOrders(),
-                  ],
-                )
+                Column(children: [
+                  _profileCard(),
+                  const SizedBox(height: 14),
+                  _quickActions(),
+                  const SizedBox(height: 14),
+                  _recentOrders(),
+                ])
               else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: _profileCard()),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 4, child: _quickActions()),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 5, child: _recentOrders()),
-                  ],
-                ),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(flex: 3, child: _profileCard()),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 4, child: _quickActions()),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 5, child: _recentOrders()),
+                ]),
               const SizedBox(height: 16),
               _ordersTable(),
               const SizedBox(height: 16),
@@ -123,7 +118,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
   ]));
 
   Widget _action(IconData icon, String title, String sub, Color color, VoidCallback onTap) => InkWell(onTap: onTap, borderRadius: BorderRadius.circular(9), child: Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(children: [
-    Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(9)), child: Icon(icon, color: color, size: 21)),
+    Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(9)), child: Icon(icon, color: color, size: 21)),
     const SizedBox(width: 10),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF26384E))), const SizedBox(height: 2), Text(sub, style: const TextStyle(fontSize: 9, color: Color(0xFF7A889A)))])),
     const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF9AA6B5)),
@@ -146,7 +141,21 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
       ['ORD-10241', '05 Sep 2026', '06', '940', '₹1,42,750', 'Delivered'],
     ];
     final filtered = orderStatus == 'All' ? rows : rows.where((row) => row[5] == orderStatus).toList();
-    return _tablePanel('My Orders', _ordersFilter(), const ['Order ID', 'Date', 'Items', 'Qty', 'Amount', 'Status', 'Action'], filtered.map((row) => [row[0], row[1], row[2], row[3], row[4], row[5], '']).toList(), isOrders: true);
+    final dataRows = filtered.map<DataRow>((row) {
+      final cells = <DataCell>[];
+      for (var index = 0; index < 7; index++) {
+        if (index == 6) {
+          cells.add(DataCell(IconButton(onPressed: () => _message('Viewing ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
+        } else if (index == 5) {
+          cells.add(DataCell(_smallStatus(row[index], _statusColor(row[index]))));
+        } else {
+          cells.add(DataCell(Text(row[index], style: TextStyle(fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500))));
+        }
+      }
+      return DataRow(cells: cells);
+    }).toList();
+
+    return _panel('My Orders', _tableContent(const ['Order ID', 'Date', 'Items', 'Qty', 'Amount', 'Status', 'Action'], dataRows, 'Showing ${filtered.length} of 4 entries', _ordersFilter()));
   }
 
   Widget _ordersFilter() => _dropdown(orderStatus, const ['All', 'Processing', 'Dispatched', 'Delivered'], (value) => setState(() => orderStatus = value ?? 'All'));
@@ -158,18 +167,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
       ['INV-2026-069', 'ORD-10255', '₹86,900', '08 Sep 2026', 'Ready', 'Sent'],
       ['INV-2026-061', 'ORD-10241', '₹1,42,750', '05 Sep 2026', 'Ready', 'Pending'],
     ];
-    return _tablePanel('My Invoices', OutlinedButton.icon(onPressed: () => _message('Invoice export started.'), icon: const Icon(Icons.download_outlined, size: 16), label: const Text('Export')), const ['Invoice', 'Order', 'Amount', 'Date', 'PDF', 'Email', 'Action'], rows.map((row) => [...row, '']).toList(), isOrders: false);
-  }
-
-  Widget _tablePanel(String title, Widget headerAction, List<String> headers, List<List<String>> rows, {required bool isOrders}) {
-    final dataRows = rows.map((row) {
+    final dataRows = rows.map<DataRow>((row) {
       final cells = <DataCell>[];
-      for (var index = 0; index < headers.length; index++) {
-        if (index == headers.length - 1) {
-          cells.add(DataCell(IconButton(onPressed: () => _message(isOrders ? 'Viewing ${row[0]}' : 'Opening ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
-        } else if (isOrders && index == 5) {
-          cells.add(DataCell(_smallStatus(row[index], _statusColor(row[index]))));
-        } else if (!isOrders && (index == 4 || index == 5)) {
+      for (var index = 0; index < 7; index++) {
+        if (index == 6) {
+          cells.add(DataCell(IconButton(onPressed: () => _message('Opening ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
+        } else if (index == 4 || index == 5) {
           final color = row[index] == 'Pending' ? const Color(0xFFE59A00) : const Color(0xFF16A05D);
           cells.add(DataCell(_smallStatus(row[index], color)));
         } else {
@@ -179,8 +182,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
       return DataRow(cells: cells);
     }).toList();
 
-    return _panel(title, Column(children: [
-      Row(children: [const Spacer(), headerAction]),
+    return _panel('My Invoices', _tableContent(const ['Invoice', 'Order', 'Amount', 'Date', 'PDF', 'Email', 'Action'], dataRows, 'Showing ${rows.length} of 4 entries', OutlinedButton.icon(onPressed: () => _message('Invoice export started.'), icon: const Icon(Icons.download_outlined, size: 16), label: const Text('Export'))));
+  }
+
+  Widget _tableContent(List<String> headers, List<DataRow> rows, String footer, Widget action) {
+    return Column(children: [
+      Row(children: [const Spacer(), action]),
       const SizedBox(height: 8),
       const Divider(height: 1),
       SingleChildScrollView(
@@ -193,26 +200,62 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
           horizontalMargin: 12,
           headingTextStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF52657A)),
           dataTextStyle: const TextStyle(fontSize: 10, color: Color(0xFF33465B)),
-          headingRowColor: const WidgetStatePropertyAll(Color(0xFFF7F9FC)),
+          headingRowColor: const MaterialStatePropertyAll(Color(0xFFF7F9FC)),
           columns: headers.map((header) => DataColumn(label: Text(header))).toList(),
-          rows: dataRows,
+          rows: rows,
         ),
       ),
       const SizedBox(height: 8),
       const Divider(height: 1),
-      Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(children: [Text('Showing ${rows.length} of ${isOrders ? 4 : 4} entries', style: const TextStyle(fontSize: 9, color: Color(0xFF718096))), const Spacer(), _pageButton('‹'), _pageButton('1', active: true), _pageButton('›')])),
-    ]));
+      Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(children: [Text(footer, style: const TextStyle(fontSize: 9, color: Color(0xFF718096))), const Spacer(), _pageButton('‹'), _pageButton('1', active: true), _pageButton('›')])),
+    ]);
   }
 
-  Widget _dropdown(String value, List<String> items, ValueChanged<String?> onChanged) => Container(height: 38, width: 145, padding: const EdgeInsets.symmetric(horizontal: 9), decoration: BoxDecoration(border: Border.all(color: const Color(0xFFDCE4EE)), borderRadius: BorderRadius.circular(8)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: value, isExpanded: true, icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 17), style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600), items: items.map((item) => DropdownMenuItem<String>(value: item, child: Text(item))).toList(), onChanged: onChanged)));
+  Widget _dropdown(String value, List<String> items, ValueChanged<String?> onChanged) {
+    return Container(
+      height: 38,
+      width: 145,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFDCE4EE)), borderRadius: BorderRadius.circular(8)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
+          style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600),
+          items: items.map((item) => DropdownMenuItem<String>(value: item, child: Text(item))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
 
-  Widget _pageButton(String text, {bool active = false}) => Container(margin: const EdgeInsets.only(left: 4), width: 30, height: 30, alignment: Alignment.center, decoration: BoxDecoration(color: active ? const Color(0xFF1769E8) : Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: active ? const Color(0xFF1769E8) : const Color(0xFFDDE5EF))), child: Text(text, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: active ? Colors.white : const Color(0xFF63738A))));
+  Widget _pageButton(String text, {bool active = false}) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF1769E8) : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: active ? const Color(0xFF1769E8) : const Color(0xFFDDE5EF)),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: active ? Colors.white : const Color(0xFF63738A))),
+    );
+  }
 
-  Widget _info(String title, String value, IconData icon) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Icon(icon, size: 15, color: const Color(0xFF748397)), const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF748397))),), Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF293C53))]));
+  Widget _info(String title, String value, IconData icon) {
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Icon(icon, size: 15, color: const Color(0xFF748397)), const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF748397))),), Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF293C53)))]));
+  }
 
-  Widget _statusChip(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: const Color(0xFFE4F7EC), borderRadius: BorderRadius.circular(6)), child: Text(text, style: const TextStyle(color: Color(0xFF14894E), fontSize: 8, fontWeight: FontWeight.w800)));
+  Widget _statusChip(String text) {
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: const Color(0xFFE4F7EC), borderRadius: BorderRadius.circular(6)), child: Text(text, style: const TextStyle(color: Color(0xFF14894E), fontSize: 8, fontWeight: FontWeight.w800)));
+  }
 
-  Widget _smallStatus(String text, Color color) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(6)), child: Text(text, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w800)));
+  Widget _smallStatus(String text, Color color) {
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(6)), child: Text(text, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w800)));
+  }
 
   Color _statusColor(String status) {
     switch (status) {
