@@ -33,7 +33,7 @@ class _WmsShellState extends State<WmsShell> {
 
   static const adminItems = <Map<String, dynamic>>[
     {'title': 'Inward / GRN', 'icon': Icons.move_to_inbox_outlined},
-    {'title': 'PUT', 'icon': Icons.shelves_outlined},
+    {'title': 'PUT', 'icon': Icons.inventory_2_outlined},
     {'title': 'Clients', 'icon': Icons.business_outlined},
     {'title': 'Products', 'icon': Icons.category_outlined},
     {'title': 'Orders', 'icon': Icons.shopping_cart_outlined},
