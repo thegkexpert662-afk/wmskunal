@@ -122,7 +122,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             dataRowMinHeight: 49,
             dataRowMaxHeight: 55,
             columnSpacing: 22,
-            headingRowColor: const WidgetStatePropertyAll(Color(0xFFFAFBFD)),
+            headingRowColor: const MaterialStatePropertyAll(Color(0xFFFAFBFD)),
             columns: const [
               DataColumn(label: Text('#')),
               DataColumn(label: Text('Client ID')),
@@ -176,9 +176,26 @@ class _ClientsScreenState extends State<ClientsScreen> {
       );
 
   Widget _drop(String value, List<String> list, ValueChanged<String?> change, String label) => Container(
-        height: 40, width: 130, padding: const EdgeInsets.symmetric(horizontal: 9),
-        decoration: BoxDecoration(border: Border.all(color: const Color(0xFFDCE4EE)), borderRadius: BorderRadius.circular(8)),
-        child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: value, isExpanded: true, icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16), style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600), items: list.map((x) => DropdownMenuItem(value: x, child: Text(x == 'All' ? '$label: All' : x))).toList(), onChanged: change)),
+        height: 40,
+        width: 130,
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFDCE4EE)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
+            style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600),
+            items: list.map((x) => DropdownMenuItem<String>(
+              value: x,
+              child: Text(x == 'All' ? '$label: All' : x),
+            )).toList(),
+            onChanged: change,
+          ),
+        ),
       );
 
   Widget _chip(String s) {
