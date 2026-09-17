@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../assets/kopersay_logo_data.dart';
 import 'wms_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,9 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void login() {
     if (username.text.trim().isEmpty || password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Username and password are required.'),
-        ),
+        const SnackBar(content: Text('Username and password are required.')),
       );
       return;
     }
@@ -42,6 +43,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _logo({double size = 150}) {
+    return Image.memory(
+      base64Decode(kopersayLogoBase64),
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,22 +60,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final bool compact = constraints.maxWidth < 900;
-
-            if (compact) {
+            if (constraints.maxWidth < 900) {
               return _mobileLogin();
             }
 
             return Row(
               children: [
-                Expanded(
-                  flex: 5,
-                  child: _brandingPanel(),
-                ),
-                Expanded(
-                  flex: 4,
-                  child: _loginPanel(),
-                ),
+                Expanded(flex: 5, child: _brandingPanel()),
+                Expanded(flex: 4, child: _loginPanel()),
               ],
             );
           },
@@ -81,10 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFEAF5FF),
-            Color(0xFFDCEEFF),
-          ],
+          colors: [Color(0xFFEAF5FF), Color(0xFFDCEEFF)],
         ),
       ),
       child: Padding(
@@ -92,44 +92,30 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _kopersayBrand(large: true),
+            Center(child: _logo(size: 190)),
             const Spacer(),
             Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 560),
-                padding: const EdgeInsets.all(34),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.48),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(
-                      Icons.warehouse_rounded,
-                      size: 150,
-                      color: Color(0xFF1769D5),
+              child: Column(
+                children: const [
+                  Text(
+                    'Warehouse Management System',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF17345E),
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
                     ),
-                    SizedBox(height: 24),
-                    Text(
-                      'Warehouse Management System',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF17345E),
-                        fontSize: 25,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Inventory • Inward • Outward • Dispatch • Reports',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF55708F),
+                      fontSize: 14,
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Inventory • Inward • Outward • Dispatch • Reports',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF55708F),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const Spacer(),
@@ -144,60 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _kopersayBrand({bool large = false}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: large ? 58 : 48,
-          height: large ? 58 : 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0B5FE8), Color(0xFF10C6E8)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0B5FE8).withValues(alpha: 0.18),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.all_inclusive_rounded,
-            color: Colors.white,
-            size: large ? 36 : 30,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'KOPERSAY',
-              style: TextStyle(
-                color: const Color(0xFF123F8A),
-                fontSize: large ? 30 : 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
-            Text(
-              'TECHNOLOGIES',
-              style: TextStyle(
-                color: const Color(0xFF159FD4),
-                fontSize: large ? 11 : 9,
-                fontWeight: FontWeight.w700,
-                letterSpacing: large ? 3.0 : 2.4,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -254,12 +186,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Center(child: _logo(size: 110)),
                   const SizedBox(height: 12),
-                  _kopersayBrand(),
-                  const SizedBox(height: 32),
-                  Text(
+                  const Text(
                     'Welcome Back!',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Color(0xFF10284A),
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
@@ -298,9 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: Icons.lock_outline,
                       suffix: IconButton(
                         onPressed: () {
-                          setState(() {
-                            obscurePassword = !obscurePassword;
-                          });
+                          setState(() => obscurePassword = !obscurePassword);
                         },
                         icon: Icon(
                           obscurePassword
@@ -316,9 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Checkbox(
                         value: rememberMe,
                         onChanged: (value) {
-                          setState(() {
-                            rememberMe = value ?? false;
-                          });
+                          setState(() => rememberMe = value ?? false);
                         },
                       ),
                       const Text('Remember me'),
@@ -336,7 +264,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: FilledButton.icon(
                       onPressed: login,
                       icon: const Icon(Icons.lock_open_outlined),
-                      label: Text(isClient ? 'Login as Client' : 'Login as Admin / Staff'),
+                      label: Text(
+                        isClient ? 'Login as Client' : 'Login as Admin / Staff',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -380,22 +310,27 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          Expanded(child: _roleButton(false, 'Admin / Staff', Icons.admin_panel_settings_outlined)),
-          Expanded(child: _roleButton(true, 'Client', Icons.business_outlined)),
+          Expanded(
+            child: _roleButton(
+              false,
+              'Admin / Staff',
+              Icons.admin_panel_settings_outlined,
+            ),
+          ),
+          Expanded(
+            child: _roleButton(true, 'Client', Icons.business_outlined),
+          ),
         ],
       ),
     );
   }
 
   Widget _roleButton(bool client, String label, IconData icon) {
-    final bool selected = isClient == client;
+    final selected = isClient == client;
+
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        setState(() {
-          isClient = client;
-        });
-      },
+      onTap: () => setState(() => isClient = client),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
@@ -486,8 +421,8 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         children: [
           const SizedBox(height: 14),
-          _kopersayBrand(large: true),
-          const SizedBox(height: 26),
+          _logo(size: 150),
+          const SizedBox(height: 18),
           _loginPanel(),
         ],
       ),
