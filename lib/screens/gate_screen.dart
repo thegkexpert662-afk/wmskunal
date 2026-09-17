@@ -167,7 +167,8 @@ class _GateScreenState extends State<GateScreen> {
   }
 
   Widget _statusChip(String s) {
-    final inside = s == 'Inside', pending = s == 'Pending';
+    final inside = s == 'Inside';
+    final pending = s == 'Pending';
     final color = inside ? const Color(0xFF14894E) : pending ? const Color(0xFFE28C00) : const Color(0xFF1769E8);
     final bg = inside ? const Color(0xFFE4F7EC) : pending ? const Color(0xFFFFF0D8) : const Color(0xFFEAF2FF);
     return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)), child: Text(s, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w800)));
@@ -177,26 +178,33 @@ class _GateScreenState extends State<GateScreen> {
   Widget _page(String s, [bool active = false]) => Container(margin: const EdgeInsets.only(left: 4), height: 30, constraints: const BoxConstraints(minWidth: 30), alignment: Alignment.center, padding: const EdgeInsets.symmetric(horizontal: 7), decoration: BoxDecoration(color: active ? const Color(0xFF1769E8) : Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: active ? const Color(0xFF1769E8) : const Color(0xFFDDE5EF))), child: Text(s, style: TextStyle(color: active ? Colors.white : const Color(0xFF63738A), fontSize: 9, fontWeight: FontWeight.w700)));
 
   Widget _details() => _panel('Gate Details', Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF5F9FF), borderRadius: BorderRadius.circular(10)), child: Row(children: [Container(width: 45, height: 45, decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.local_shipping_outlined, color: Color(0xFF1769E8), size: 25)), const SizedBox(width: 10), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('MH04AB1234', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF172A43))), SizedBox(height: 3), Text('GT-0081 • Inward', style: TextStyle(fontSize: 9, color: Color(0xFF718096))) ])), _statusChip('Inside')])),
-        const SizedBox(height: 12),
-        _detail('Client', 'ABC Industries', Icons.business_outlined),
-        _detail('Warehouse', 'Main Warehouse', Icons.warehouse_outlined),
-        _detail('Driver', 'Rakesh Sharma', Icons.person_outline),
-        _detail('Entry Time', '09:12 AM', Icons.schedule_outlined),
-        _detail('Gate', 'Gate 01', Icons.sensor_door_outlined),
-        _detail('Purpose', 'Material Receipt', Icons.inventory_2_outlined),
-        const Divider(height: 22),
-        const Text('Movement Timeline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF172A43))),
-        const SizedBox(height: 10),
-        _timeline('Gate Entry', '09:12 AM', true),
-        _timeline('Vehicle Verified', '09:16 AM', true),
-        _timeline('Dock Assigned', '09:20 AM', true),
-        _timeline('GRN Pending', 'Waiting', false),
-        const SizedBox(height: 12),
-        Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () => _msg('Gate record edited.'), icon: const Icon(Icons.edit_outlined, size: 16), label: const Text('Edit'))), const SizedBox(width: 8), Expanded(child: FilledButton.icon(onPressed: () => _msg('Gate exit started.'), icon: const Icon(Icons.logout_rounded, size: 16), label: const Text('Gate Out')))]),
-      ]));
+    Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF5F9FF), borderRadius: BorderRadius.circular(10)), child: Row(children: [
+      Container(width: 45, height: 45, decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.local_shipping_outlined, color: Color(0xFF1769E8), size: 25)),
+      const SizedBox(width: 10),
+      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('MH04AB1234', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF172A43))), SizedBox(height: 3), Text('GT-0081 • Inward', style: TextStyle(fontSize: 9, color: Color(0xFF718096)))])),
+      _statusChip('Inside'),
+    ])),
+    const SizedBox(height: 12),
+    _detail('Client', 'ABC Industries', Icons.business_outlined),
+    _detail('Warehouse', 'Main Warehouse', Icons.warehouse_outlined),
+    _detail('Driver', 'Rakesh Sharma', Icons.person_outline),
+    _detail('Entry Time', '09:12 AM', Icons.schedule_outlined),
+    _detail('Gate', 'Gate 01', Icons.sensor_door_outlined),
+    _detail('Purpose', 'Material Receipt', Icons.inventory_2_outlined),
+    const Divider(height: 22),
+    const Text('Movement Timeline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF172A43))),
+    const SizedBox(height: 10),
+    _timeline('Gate Entry', '09:12 AM', true),
+    _timeline('Vehicle Verified', '09:16 AM', true),
+    _timeline('Dock Assigned', '09:20 AM', true),
+    _timeline('GRN Pending', 'Waiting', false),
+    const SizedBox(height: 12),
+    Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () => _msg('Gate record edited.'), icon: const Icon(Icons.edit_outlined, size: 16), label: const Text('Edit'))), const SizedBox(width: 8), Expanded(child: FilledButton.icon(onPressed: () => _msg('Gate exit started.'), icon: const Icon(Icons.logout_rounded, size: 16), label: const Text('Gate Out')))]),
+  ]));
 
   Widget _detail(String title, String value, IconData icon) => Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(children: [Icon(icon, size: 16, color: const Color(0xFF718096)), const SizedBox(width: 9), Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)))), Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF27394F)))]));
-  Widget _timeline(String title, String time, bool done) => Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [Icon(done ? Icons.check_circle : Icons.radio_button_unchecked, size: 16, color: done ? const Color(0xFF16A05D) : const Color(0xFFB7C0CC)), const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF45566C))), Text(time, style: const TextStyle(fontSize: 8, color: Color(0xFF78869A), fontWeight: FontWeight.w700))]));
+
+  Widget _timeline(String title, String time, bool done) => Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [Icon(done ? Icons.check_circle : Icons.radio_button_unchecked, size: 16, color: done ? const Color(0xFF16A05D) : const Color(0xFFB7C0CC)), const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF45566C)))), Text(time, style: const TextStyle(fontSize: 8, color: Color(0xFF78869A), fontWeight: FontWeight.w700))]));
+
   void _msg(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
 }
