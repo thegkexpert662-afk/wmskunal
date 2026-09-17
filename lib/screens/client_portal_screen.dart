@@ -146,11 +146,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
       ['ORD-10241', '05 Sep 2026', '06', '940', '₹1,42,750', 'Delivered'],
     ];
     final filtered = orderStatus == 'All' ? rows : rows.where((row) => row[5] == orderStatus).toList();
-    return _tablePanel('My Orders', _ordersFilter(), const [
-      'Order ID', 'Date', 'Items', 'Qty', 'Amount', 'Status', 'Action'
-    ], filtered.map((row) => [
-      row[0], row[1], row[2], row[3], row[4], row[5], ''
-    ]).toList(), isOrders: true);
+    return _tablePanel('My Orders', _ordersFilter(), const ['Order ID', 'Date', 'Items', 'Qty', 'Amount', 'Status', 'Action'], filtered.map((row) => [row[0], row[1], row[2], row[3], row[4], row[5], '']).toList(), isOrders: true);
   }
 
   Widget _ordersFilter() => _dropdown(orderStatus, const ['All', 'Processing', 'Dispatched', 'Delivered'], (value) => setState(() => orderStatus = value ?? 'All'));
@@ -162,12 +158,27 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
       ['INV-2026-069', 'ORD-10255', '₹86,900', '08 Sep 2026', 'Ready', 'Sent'],
       ['INV-2026-061', 'ORD-10241', '₹1,42,750', '05 Sep 2026', 'Ready', 'Pending'],
     ];
-    return _tablePanel('My Invoices', OutlinedButton.icon(onPressed: () => _message('Invoice export started.'), icon: const Icon(Icons.download_outlined, size: 16), label: const Text('Export')), const [
-      'Invoice', 'Order', 'Amount', 'Date', 'PDF', 'Email', 'Action'
-    ], rows.map((row) => [...row, '']).toList(), isOrders: false);
+    return _tablePanel('My Invoices', OutlinedButton.icon(onPressed: () => _message('Invoice export started.'), icon: const Icon(Icons.download_outlined, size: 16), label: const Text('Export')), const ['Invoice', 'Order', 'Amount', 'Date', 'PDF', 'Email', 'Action'], rows.map((row) => [...row, '']).toList(), isOrders: false);
   }
 
   Widget _tablePanel(String title, Widget headerAction, List<String> headers, List<List<String>> rows, {required bool isOrders}) {
+    final dataRows = rows.map((row) {
+      final cells = <DataCell>[];
+      for (var index = 0; index < headers.length; index++) {
+        if (index == headers.length - 1) {
+          cells.add(DataCell(IconButton(onPressed: () => _message(isOrders ? 'Viewing ${row[0]}' : 'Opening ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
+        } else if (isOrders && index == 5) {
+          cells.add(DataCell(_smallStatus(row[index], _statusColor(row[index]))));
+        } else if (!isOrders && (index == 4 || index == 5)) {
+          final color = row[index] == 'Pending' ? const Color(0xFFE59A00) : const Color(0xFF16A05D);
+          cells.add(DataCell(_smallStatus(row[index], color)));
+        } else {
+          cells.add(DataCell(Text(row[index], style: TextStyle(fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500))));
+        }
+      }
+      return DataRow(cells: cells);
+    }).toList();
+
     return _panel(title, Column(children: [
       Row(children: [const Spacer(), headerAction]),
       const SizedBox(height: 8),
@@ -184,19 +195,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
           dataTextStyle: const TextStyle(fontSize: 10, color: Color(0xFF33465B)),
           headingRowColor: const WidgetStatePropertyAll(Color(0xFFF7F9FC)),
           columns: headers.map((header) => DataColumn(label: Text(header))).toList(),
-          rows: rows.map((row) => DataRow(cells: List.generate(headers.length, (index) {
-            if (index == headers.length - 1) {
-              return DataCell(IconButton(onPressed: () => _message(isOrders ? 'Viewing ${row[0]}' : 'Opening ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View'));
-            }
-            if (isOrders && index == 5) {
-              return DataCell(_smallStatus(row[index], _statusColor(row[index])));
-            }
-            if (!isOrders && (index == 4 || index == 5)) {
-              final color = row[index] == 'Pending' ? const Color(0xFFE59A00) : const Color(0xFF16A05D);
-              return DataCell(_smallStatus(row[index], color));
-            }
-            return DataCell(Text(row[index], style: TextStyle(fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500)));
-          })).toList(),
+          rows: dataRows,
         ),
       ),
       const SizedBox(height: 8),
