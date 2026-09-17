@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../assets/kopersay_logo_data.dart';
+import '../models/app_role.dart';
 import 'wms_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController username = TextEditingController();
   final TextEditingController password = TextEditingController();
 
-  bool isClient = false;
   bool obscurePassword = true;
   bool rememberMe = false;
 
@@ -35,11 +35,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Temporary frontend role resolver. Replace this with the authenticated
+    // backend response when the Node.js API is connected.
+    final role = roleFromUsername(username.text);
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => WmsShell(clientMode: isClient),
-      ),
+      MaterialPageRoute(builder: (_) => WmsShell(role: role)),
     );
   }
 
@@ -60,10 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 900) {
-              return _mobileLogin();
-            }
-
+            if (constraints.maxWidth < 900) return _mobileLogin();
             return Row(
               children: [
                 Expanded(flex: 5, child: _brandingPanel()),
@@ -90,33 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 42),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(child: _logo(size: 190)),
             const Spacer(),
-            Center(
-              child: Column(
-                children: const [
-                  Text(
-                    'Warehouse Management System',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF17345E),
-                      fontSize: 25,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Inventory • Inward • Outward • Dispatch • Reports',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF55708F),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+            const Text(
+              'Warehouse Management System',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF17345E), fontSize: 25, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Inventory • Inward • Outward • Dispatch • Reports',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF55708F), fontSize: 14),
             ),
             const Spacer(),
             Row(
@@ -139,15 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           Icon(icon, color: const Color(0xFF1769D5), size: 27),
           const SizedBox(height: 8),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF38516E),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF38516E), fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -162,10 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Card(
             elevation: 0,
             color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: const BorderSide(color: Color(0xFFE3EAF2)),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: const BorderSide(color: Color(0xFFE3EAF2))),
             child: Padding(
               padding: const EdgeInsets.all(42),
               child: Column(
@@ -176,12 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: 'English',
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'English',
-                            child: Text('English'),
-                          ),
-                        ],
+                        items: const [DropdownMenuItem(value: 'English', child: Text('English'))],
                         onChanged: (_) {},
                       ),
                     ),
@@ -189,36 +158,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Center(child: _logo(size: 110)),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      color: Color(0xFF10284A),
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                  const Text('Welcome Back!', style: TextStyle(color: Color(0xFF10284A), fontSize: 32, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 8),
-                  Text(
-                    isClient
-                        ? 'Sign in to continue to your client portal'
-                        : 'Sign in to continue to your admin / staff account',
-                    style: const TextStyle(
-                      color: Color(0xFF718198),
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  _roleSelector(),
+                  const Text('Sign in to continue to KOPERSAY WMS', style: TextStyle(color: Color(0xFF718198), fontSize: 15)),
                   const SizedBox(height: 28),
                   _label('Username'),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: username,
-                    decoration: _inputDecoration(
-                      hint: 'Enter username',
-                      icon: Icons.person_outline,
-                    ),
-                  ),
+                  TextField(controller: username, decoration: _inputDecoration(hint: 'Enter username', icon: Icons.person_outline)),
                   const SizedBox(height: 20),
                   _label('Password'),
                   const SizedBox(height: 8),
@@ -229,32 +175,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       hint: 'Enter password',
                       icon: Icons.lock_outline,
                       suffix: IconButton(
-                        onPressed: () {
-                          setState(() => obscurePassword = !obscurePassword);
-                        },
-                        icon: Icon(
-                          obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
+                        onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                        icon: Icon(obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Checkbox(
-                        value: rememberMe,
-                        onChanged: (value) {
-                          setState(() => rememberMe = value ?? false);
-                        },
-                      ),
+                      Checkbox(value: rememberMe, onChanged: (value) => setState(() => rememberMe = value ?? false)),
                       const Text('Remember me'),
                       const Spacer(),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('Forgot Password?'),
-                      ),
+                      TextButton(onPressed: () {}, child: const Text('Forgot Password?')),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -264,33 +196,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: FilledButton.icon(
                       onPressed: login,
                       icon: const Icon(Icons.lock_open_outlined),
-                      label: Text(
-                        isClient ? 'Login as Client' : 'Login as Admin / Staff',
-                      ),
+                      label: const Text('Login'),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Center(
+                  const Center(
                     child: Text(
-                      isClient
-                          ? 'Client access is restricted to your company data.'
-                          : 'Admin / Staff access is controlled by assigned roles.',
+                      'Your portal is selected automatically from your account role.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF8492A6),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF8492A6), fontSize: 12),
                     ),
                   ),
                   const SizedBox(height: 26),
                   const Center(
-                    child: Text(
-                      '© 2026 KOPERSAY TECHNOLOGIES. All rights reserved.',
-                      style: TextStyle(
-                        color: Color(0xFF8B98A9),
-                        fontSize: 11,
-                      ),
-                    ),
+                    child: Text('© 2026 KOPERSAY TECHNOLOGIES. All rights reserved.', style: TextStyle(color: Color(0xFF8B98A9), fontSize: 11)),
                   ),
                 ],
               ),
@@ -301,98 +220,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _roleSelector() {
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F9),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _roleButton(
-              false,
-              'Admin / Staff',
-              Icons.admin_panel_settings_outlined,
-            ),
-          ),
-          Expanded(
-            child: _roleButton(true, 'Client', Icons.business_outlined),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _label(String text) => Text(text, style: const TextStyle(color: Color(0xFF182C47), fontWeight: FontWeight.w700, fontSize: 14));
 
-  Widget _roleButton(bool client, String label, IconData icon) {
-    final selected = isClient == client;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => setState(() => isClient = client),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: selected
-              ? const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected
-                  ? const Color(0xFF1264D8)
-                  : const Color(0xFF6F8096),
-            ),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected
-                      ? const Color(0xFF123F8A)
-                      : const Color(0xFF65758A),
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFF182C47),
-        fontWeight: FontWeight.w700,
-        fontSize: 14,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    Widget? suffix,
-  }) {
+  InputDecoration _inputDecoration({required String hint, required IconData icon, Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon, color: const Color(0xFF65758A)),
@@ -400,32 +230,16 @@ class _LoginScreenState extends State<LoginScreen> {
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD5DEE9)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD5DEE9)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1769D5), width: 1.5),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFD5DEE9))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFD5DEE9))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1769D5), width: 1.5)),
     );
   }
 
   Widget _mobileLogin() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          const SizedBox(height: 14),
-          _logo(size: 150),
-          const SizedBox(height: 18),
-          _loginPanel(),
-        ],
-      ),
+      child: Column(children: [const SizedBox(height: 14), _logo(size: 150), const SizedBox(height: 18), _loginPanel()]),
     );
   }
 }
