@@ -333,6 +333,45 @@ class DataTableCard extends StatelessWidget {
   }
 }
 
+
+class SettingCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const SettingCard({
+    super.key,
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: SizedBox(
+        width: 230,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, color: wmsBlue, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: wmsDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ScreenFrame extends StatelessWidget {
   final String title;
   final String subtitle;
