@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'common_widgets.dart';
+import '../common_widgets.dart';
 
 class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
