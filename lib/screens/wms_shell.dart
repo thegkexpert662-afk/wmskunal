@@ -10,6 +10,7 @@ import 'master_admin/users_roles_screen.dart';
 import 'master_admin/system_settings_screen.dart';
 import 'master_admin/security_audit_screen.dart';
 import 'master_admin/technical_support_screen.dart';
+import 'master_admin/device_authentication_screen.dart';
 
 // Admin screens
 import 'admin/dashboard_screen.dart';
@@ -80,6 +81,7 @@ class _WmsShellState extends State<WmsShell> {
     {'title': 'System Settings', 'icon': Icons.settings_outlined},
     {'title': 'Security / Audit', 'icon': Icons.security_outlined},
     {'title': 'Technical Support', 'icon': Icons.support_agent_outlined},
+    {'title': 'Device Authentication', 'icon': Icons.devices_outlined},
   ];
 
   List<Map<String, dynamic>> get items {
@@ -97,6 +99,7 @@ class _WmsShellState extends State<WmsShell> {
         case 3: return const MasterSystemSettingsScreen();
         case 4: return const MasterSecurityAuditScreen();
         case 5: return const TechnicalSupportScreen();
+        case 6: return const DeviceAuthenticationScreen();
         default: return const MasterDashboardScreen();
       }
     }
