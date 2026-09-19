@@ -596,3 +596,149 @@ class WmsInvoiceSkeleton extends StatelessWidget {
     );
   }
 }
+
+
+class WmsErrorState extends StatelessWidget {
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+  final String retryLabel;
+
+  const WmsErrorState({
+    super.key,
+    this.title = 'Unable to load page',
+    this.message =
+        "We couldn't load the data right now. Please check your connection and try again.",
+    this.onRetry,
+    this.retryLabel = 'Try Again',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE3EAF2)),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x0A18304F),
+              blurRadius: 14,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.10),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: Colors.red,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: wmsDark,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF708096),
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+            if (onRetry != null) ...<Widget>[
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(retryLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WmsEmptyState extends StatelessWidget {
+  final String title;
+  final String message;
+  final VoidCallback? onAction;
+  final String actionLabel;
+
+  const WmsEmptyState({
+    super.key,
+    this.title = 'No data found',
+    this.message = 'There is no data available to display.',
+    this.onAction,
+    this.actionLabel = 'Refresh',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.inbox_outlined,
+              size: 52,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                color: wmsDark,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF708096),
+                fontSize: 13,
+              ),
+            ),
+            if (onAction != null) ...<Widget>[
+              const SizedBox(height: 14),
+              TextButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(actionLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
