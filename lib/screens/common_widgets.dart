@@ -411,3 +411,188 @@ class ScreenFrame extends StatelessWidget {
     );
   }
 }
+
+
+class WmsLoadingBlock extends StatelessWidget {
+  final double height;
+  final double width;
+  final double radius;
+
+  const WmsLoadingBlock({
+    super.key,
+    this.height = 16,
+    this.width = double.infinity,
+    this.radius = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9EEF5),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class WmsTableSkeleton extends StatelessWidget {
+  final int rows;
+  final int columns;
+
+  const WmsTableSkeleton({
+    super.key,
+    this.rows = 6,
+    this.columns = 5,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3EAF2)),
+      ),
+      child: Column(
+        children: List<Widget>.generate(rows, (rowIndex) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: rowIndex == rows - 1 ? 0 : 14),
+            child: Row(
+              children: List<Widget>.generate(columns, (columnIndex) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: columnIndex == columns - 1 ? 0 : 14,
+                    ),
+                    child: WmsLoadingBlock(
+                      height: rowIndex == 0 ? 18 : 14,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class WmsCardSkeleton extends StatelessWidget {
+  final int cards;
+
+  const WmsCardSkeleton({
+    super.key,
+    this.cards = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: List<Widget>.generate(cards, (index) {
+        return SizedBox(
+          width: 165,
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const <Widget>[
+                  WmsLoadingBlock(width: 80, height: 11),
+                  SizedBox(height: 10),
+                  WmsLoadingBlock(width: 55, height: 22),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class WmsDashboardSkeleton extends StatelessWidget {
+  const WmsDashboardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const <Widget>[
+        WmsCardSkeleton(),
+        SizedBox(height: 22),
+        WmsTableSkeleton(rows: 5, columns: 5),
+      ],
+    );
+  }
+}
+
+class WmsFormSkeleton extends StatelessWidget {
+  final int fields;
+
+  const WmsFormSkeleton({
+    super.key,
+    this.fields = 6,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: List<Widget>.generate(fields, (index) {
+        return SizedBox(
+          width: 260,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const <Widget>[
+              WmsLoadingBlock(width: 90, height: 11),
+              SizedBox(height: 8),
+              WmsLoadingBlock(height: 48, radius: 10),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class WmsInvoiceSkeleton extends StatelessWidget {
+  const WmsInvoiceSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3EAF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const <Widget>[
+          WmsLoadingBlock(width: 220, height: 24),
+          SizedBox(height: 10),
+          WmsLoadingBlock(width: 340, height: 14),
+          SizedBox(height: 24),
+          WmsLoadingBlock(height: 1),
+          SizedBox(height: 22),
+          WmsTableSkeleton(rows: 5, columns: 5),
+          SizedBox(height: 22),
+          WmsLoadingBlock(width: 220, height: 18),
+          SizedBox(height: 10),
+          WmsLoadingBlock(width: 160, height: 24),
+        ],
+      ),
+    );
+  }
+}
