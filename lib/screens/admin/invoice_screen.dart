@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'common_widgets.dart';
+import '../common_widgets.dart';
 
 class AdminInvoiceScreen extends StatefulWidget {
   const AdminInvoiceScreen({super.key});
