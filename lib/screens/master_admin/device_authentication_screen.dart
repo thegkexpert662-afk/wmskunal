@@ -92,7 +92,7 @@ class _DeviceAuthenticationScreenState
           ),
           const SizedBox(height: 16),
           DataTableCard(
-            columns: const [
+            headers: const [
               'Device ID',
               'User',
               'Company',
