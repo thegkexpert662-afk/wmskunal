@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'common_widgets.dart';
+import '../common_widgets.dart';
 
 class MasterUsersRolesScreen extends StatefulWidget {
   const MasterUsersRolesScreen({super.key});
