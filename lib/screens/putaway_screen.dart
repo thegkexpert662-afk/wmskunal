@@ -89,7 +89,7 @@ class _PutawayScreenState extends State<PutawayScreen> {
         DataCell(Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(t['product'], style: const TextStyle(fontWeight: FontWeight.w600)), Text(t['sku'], style: const TextStyle(fontSize: 10, color: Color(0xFF718096)))])),
         DataCell(Text('${t['qty']} ${t['uom']}')), DataCell(Text(t['warehouse'])), DataCell(Text(t['zone'])), DataCell(Text(t['bin'], style: const TextStyle(fontWeight: FontWeight.w600))), DataCell(_status(t['status'])),
         DataCell(IconButton(onPressed: () => setState(() => selectedIndex = original), tooltip: 'View / Process', icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 18))),
-      ]; }),
+      ]); }),
     )), const Divider(height: 1), Padding(padding: const EdgeInsets.all(12), child: Row(children: [Text('Showing ${rows.length} of ${tasks.length} records', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))), const Spacer(), TextButton(onPressed: () => setState(() {}), child: const Text('Refresh'))]))
   ]));
 
@@ -114,7 +114,6 @@ class _PutawayScreenState extends State<PutawayScreen> {
   }
 
   Widget _detail(String label, String value) => Padding(padding: const EdgeInsets.only(bottom: 9), child: Row(children: [Expanded(child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096)))), Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1D304A)))]));
-
   Widget _status(String value) { final completed = value == 'Completed'; final progress = value == 'In Progress'; final color = completed ? const Color(0xFF14894E) : progress ? const Color(0xFF7448D8) : const Color(0xFFE28C00); final bg = completed ? const Color(0xFFE4F7EC) : progress ? const Color(0xFFF0E9FF) : const Color(0xFFFFF0D8); return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)), child: Text(value, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w800))); }
   BoxDecoration _box() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13), border: Border.all(color: const Color(0xFFE2E9F1)), boxShadow: const [BoxShadow(color: Color(0x0A18304F), blurRadius: 14, offset: Offset(0, 5))]);
 
