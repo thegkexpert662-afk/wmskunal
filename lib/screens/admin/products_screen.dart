@@ -173,11 +173,21 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowHeight: 44,
-              dataRowMinHeight: 49,
-              dataRowMaxHeight: 55,
-              columnSpacing: 22,
-              headingRowColor: const MaterialStatePropertyAll(Color(0xFFFAFBFD)),
+              headingTextStyle: const TextStyle(
+                color: Color(0xFF43546A),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+              dataTextStyle: const TextStyle(
+                color: Color(0xFF26384F),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              headingRowHeight: 48,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 58,
+              columnSpacing: 26,
+              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
               columns: const [
                 DataColumn(label: Text('#')),
                 DataColumn(label: Text('SKU')),
