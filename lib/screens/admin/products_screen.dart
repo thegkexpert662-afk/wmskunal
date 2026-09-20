@@ -170,8 +170,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         children: [
           _filters(),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalTableScroller(
             child: DataTable(
               headingTextStyle: const TextStyle(
                 color: Color(0xFF43546A),
