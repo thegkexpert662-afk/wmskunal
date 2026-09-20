@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../common_widgets.dart';
 
 class AdminPutawayScreen extends StatefulWidget {
   const AdminPutawayScreen({super.key});
@@ -81,7 +82,7 @@ class _AdminPutawayScreenState extends State<AdminPutawayScreen> {
 
   Widget _table(List<Map<String, dynamic>> rows) => Container(decoration: _box(), child: Column(children: [
     _filters(), const Divider(height: 1),
-    SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(
+    HorizontalTableScroller(child: DataTable(
               headingTextStyle: const TextStyle(
                 color: Color(0xFF43546A),
                 fontSize: 11,
