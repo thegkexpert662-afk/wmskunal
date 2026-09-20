@@ -253,6 +253,39 @@ class DataTableCard extends StatelessWidget {
     this.statusColumns = const <int>[],
   });
 
+  double _tableColumnWidth(String header) {
+    switch (header) {
+      case '#':
+        return 50;
+      case 'Return ID':
+      case 'Client ID':
+      case 'Order ID':
+      case 'Invoice No':
+        return 115;
+      case 'Order':
+      case 'Invoice':
+        return 110;
+      case 'Client':
+      case 'Client Name':
+        return 160;
+      case 'Qty':
+      case 'Items':
+      case 'Lines':
+        return 75;
+      case 'Reason':
+        return 150;
+      case 'Status':
+        return 105;
+      case 'Action':
+      case 'Actions':
+        return 95;
+      case 'Email':
+        return 190;
+      default:
+        return 120;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -285,6 +318,7 @@ class DataTableCard extends StatelessWidget {
             ),
             columns: headers.map((header) {
               return DataColumn(
+                columnWidth: FixedColumnWidth(_tableColumnWidth(header)),
                 label: Text(
                   header,
                   style: const TextStyle(
