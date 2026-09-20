@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../common_widgets.dart';
 
 class AdminInboundScreen extends StatefulWidget {
   const AdminInboundScreen({super.key});
@@ -364,8 +365,7 @@ class _AdminInboundScreenState extends State<AdminInboundScreen> {
         children: [
           _filterBar(),
           const Divider(height: 1, color: Color(0xFFE8EDF3)),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalTableScroller(
             child: DataTable(
               headingTextStyle: const TextStyle(
                 color: Color(0xFF43546A),
