@@ -79,6 +79,13 @@ CREATE TABLE IF NOT EXISTS clients (
   UNIQUE (company_id, client_code)
 );
 
+ALTER TABLE users
+  DROP CONSTRAINT IF EXISTS users_client_id_fkey;
+
+ALTER TABLE users
+  ADD CONSTRAINT users_client_id_fkey
+  FOREIGN KEY (client_id) REFERENCES clients(id);
+
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
