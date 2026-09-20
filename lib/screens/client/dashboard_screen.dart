@@ -208,9 +208,13 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
       Row(children: [const Spacer(), action]),
       const SizedBox(height: 8),
       const Divider(height: 1),
-      HorizontalTableScroller(
-        child: DataTable(
-          headingRowHeight: 48,
+      LayoutBuilder(
+        builder: (context, tableConstraints) {
+          return HorizontalTableScroller(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: tableConstraints.maxWidth),
+              child: DataTable(
+                headingRowHeight: 48,
           dataRowMinHeight: 52,
           dataRowMaxHeight: 58,
           columnSpacing: 26,
@@ -238,8 +242,11 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
               label: Text(header),
             );
           }).toList(),
-          rows: rows,
-        ),
+                rows: rows,
+              ),
+            ),
+          );
+        },
       ),
       const SizedBox(height: 8),
       const Divider(height: 1),
