@@ -2,7 +2,11 @@ const pool = require('../config/db');
 
 function requireCompanyModule(moduleKey) {
   return async (req, res, next) => {
-    if (req.user?.role === 'master_admin') return next();
+    if (req.user?.role === 'master_admin') {
+      return res.status(403).json({
+        error: { code: 'MASTER_OPERATIONAL_ACCESS_DENIED', message: 'Master Admin cannot access operational business modules.' },
+      });
+    }
 
     const companyId = req.user?.companyId;
     if (!companyId) {
