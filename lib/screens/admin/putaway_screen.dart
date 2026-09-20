@@ -82,7 +82,17 @@ class _AdminPutawayScreenState extends State<AdminPutawayScreen> {
   Widget _table(List<Map<String, dynamic>> rows) => Container(decoration: _box(), child: Column(children: [
     _filters(), const Divider(height: 1),
     SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(
-      headingRowHeight: 48, dataRowMinHeight: 55, dataRowMaxHeight: 60, columnSpacing: 23, headingRowColor: const WidgetStatePropertyAll(Color(0xFFFAFBFD)),
+              headingTextStyle: const TextStyle(
+                color: Color(0xFF43546A),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+              dataTextStyle: const TextStyle(
+                color: Color(0xFF26384F),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              headingRowHeight: 48, dataRowMinHeight: 52, dataRowMaxHeight: 58, columnSpacing: 26, headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
       columns: const [DataColumn(label: Text('#')),DataColumn(label: Text('PUT No.')),DataColumn(label: Text('GRN No.')),DataColumn(label: Text('Product / SKU')),DataColumn(label: Text('Qty')),DataColumn(label: Text('Warehouse')),DataColumn(label: Text('Zone')),DataColumn(label: Text('Bin')),DataColumn(label: Text('Status')),DataColumn(label: Text('Action'))],
       rows: List.generate(rows.length, (i) { final t = rows[i]; final original = tasks.indexOf(t); return DataRow(selected: selectedIndex == original, cells: [
         DataCell(Text('${i + 1}')), DataCell(Text(t['put'], style: const TextStyle(fontWeight: FontWeight.w700))), DataCell(Text(t['grn'])),
