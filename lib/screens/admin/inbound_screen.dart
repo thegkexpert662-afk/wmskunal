@@ -367,11 +367,21 @@ class _AdminInboundScreenState extends State<AdminInboundScreen> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
+              headingTextStyle: const TextStyle(
+                color: Color(0xFF43546A),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+              dataTextStyle: const TextStyle(
+                color: Color(0xFF26384F),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
               headingRowHeight: 48,
-              dataRowMinHeight: 55,
+              dataRowMinHeight: 52,
               dataRowMaxHeight: 58,
-              columnSpacing: 25,
-              headingRowColor: const WidgetStatePropertyAll(Color(0xFFFAFBFD)),
+              columnSpacing: 26,
+              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
               columns: const [
                 DataColumn(label: Text('#')),
                 DataColumn(label: Text('GRN No.')),
