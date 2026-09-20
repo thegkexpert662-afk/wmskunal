@@ -22,6 +22,7 @@ import 'admin/orders_screen.dart';
 import 'admin/picking_screen.dart';
 import 'admin/packing_screen.dart';
 import 'admin/dispatch_screen.dart';
+import 'admin/returns_screen.dart';
 import 'admin/invoice_screen.dart';
 import 'admin/stock_mis_screen.dart';
 import 'admin/profile_screen.dart';
@@ -32,6 +33,7 @@ import 'client/dashboard_screen.dart';
 import 'client/product_catalogue_screen.dart';
 import 'client/place_order_screen.dart';
 import 'client/my_orders_screen.dart';
+import 'client/returns_screen.dart';
 import 'client/track_dispatch_screen.dart';
 import 'client/my_invoices_screen.dart';
 import 'client/profile_screen.dart';
@@ -58,6 +60,7 @@ class _WmsShellState extends State<WmsShell> {
     {'title': 'Picking', 'icon': Icons.playlist_add_check_outlined},
     {'title': 'Packing', 'icon': Icons.inventory_2_outlined},
     {'title': 'Dispatch', 'icon': Icons.local_shipping_outlined},
+    {'title': 'Returns', 'icon': Icons.assignment_return_outlined},
     {'title': 'Invoices', 'icon': Icons.receipt_long_outlined},
     {'title': 'Stock / Excel MIS', 'icon': Icons.table_chart_outlined},
     {'title': 'Profile', 'icon': Icons.person_outline},
@@ -69,6 +72,7 @@ class _WmsShellState extends State<WmsShell> {
     {'title': 'Product Catalogue', 'icon': Icons.category_outlined},
     {'title': 'Place Order', 'icon': Icons.add_shopping_cart_outlined},
     {'title': 'My Orders', 'icon': Icons.shopping_bag_outlined},
+    {'title': 'Returns', 'icon': Icons.assignment_return_outlined},
     {'title': 'Track Dispatch', 'icon': Icons.local_shipping_outlined},
     {'title': 'My Invoices', 'icon': Icons.receipt_long_outlined},
     {'title': 'Profile', 'icon': Icons.person_outline},
@@ -110,9 +114,10 @@ class _WmsShellState extends State<WmsShell> {
         case 1: return const ClientProductCatalogueScreen();
         case 2: return const ClientPlaceOrderScreen();
         case 3: return const ClientMyOrdersScreen();
-        case 4: return const ClientTrackDispatchScreen();
-        case 5: return const ClientMyInvoicesScreen();
-        case 6: return const ClientProfileScreen();
+        case 4: return const ClientReturnsScreen();
+        case 5: return const ClientTrackDispatchScreen();
+        case 6: return const ClientMyInvoicesScreen();
+        case 7: return const ClientProfileScreen();
         default: return const ClientDashboardScreen();
       }
     }
@@ -126,10 +131,11 @@ class _WmsShellState extends State<WmsShell> {
       case 5: return const AdminPickingScreen();
       case 6: return const AdminPackingScreen();
       case 7: return const AdminDispatchScreen();
-      case 8: return const AdminInvoiceScreen();
-      case 9: return const AdminStockMisScreen();
-      case 10: return const AdminProfileScreen();
-      case 11: return const AdminReportsScreen();
+      case 8: return const AdminReturnsScreen();
+      case 9: return const AdminInvoiceScreen();
+      case 10: return const AdminStockMisScreen();
+      case 11: return const AdminProfileScreen();
+      case 12: return const AdminReportsScreen();
       default: return const AdminDashboardScreen();
     }
   }
