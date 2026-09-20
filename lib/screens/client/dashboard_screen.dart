@@ -190,18 +190,36 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
       Row(children: [const Spacer(), action]),
       const SizedBox(height: 8),
       const Divider(height: 1),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      HorizontalTableScroller(
         child: DataTable(
-          headingRowHeight: 44,
-          dataRowMinHeight: 50,
-          dataRowMaxHeight: 56,
-          columnSpacing: 28,
-          horizontalMargin: 12,
+          headingRowHeight: 48,
+          dataRowMinHeight: 52,
+          dataRowMaxHeight: 58,
+          columnSpacing: 26,
+          horizontalMargin: 18,
           headingTextStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF52657A)),
           dataTextStyle: const TextStyle(fontSize: 10, color: Color(0xFF33465B)),
           headingRowColor: const MaterialStatePropertyAll(Color(0xFFF7F9FC)),
-          columns: headers.map((header) => DataColumn(label: Text(header))).toList(),
+          columns: headers.map((header) {
+            final width = switch (header) {
+              'Order ID' => 120.0,
+              'Invoice' => 120.0,
+              'Date' => 100.0,
+              'Items' => 75.0,
+              'Qty' => 85.0,
+              'Amount' => 120.0,
+              'Status' => 105.0,
+              'PDF' => 75.0,
+              'Email' => 80.0,
+              'Action' => 95.0,
+              'Order' => 110.0,
+              _ => 110.0,
+            };
+            return DataColumn(
+              columnWidth: FixedColumnWidth(width),
+              label: Text(header),
+            );
+          }).toList(),
           rows: rows,
         ),
       ),
