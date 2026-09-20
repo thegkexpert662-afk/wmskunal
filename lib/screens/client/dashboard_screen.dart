@@ -143,15 +143,24 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
     final filtered = orderStatus == 'All' ? rows : rows.where((row) => row[5] == orderStatus).toList();
     final dataRows = filtered.map<DataRow>((row) {
       final cells = <DataCell>[];
-      for (var index = 0; index < 7; index++) {
-        if (index == 6) {
-          cells.add(DataCell(IconButton(onPressed: () => _message('Viewing ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
-        } else if (index == 5) {
+      for (var index = 0; index < row.length; index++) {
+        if (index == 5) {
           cells.add(DataCell(_smallStatus(row[index], _statusColor(row[index]))));
         } else {
-          cells.add(DataCell(Text(row[index], style: TextStyle(fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500))));
+          cells.add(DataCell(Text(
+            row[index],
+            style: TextStyle(
+              fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500,
+              color: const Color(0xFF26384F),
+            ),
+          )));
         }
       }
+      cells.add(DataCell(IconButton(
+        onPressed: () => _message('Viewing ${row[0]}'),
+        icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17),
+        tooltip: 'View',
+      )));
       return DataRow(cells: cells);
     }).toList();
 
@@ -169,16 +178,25 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
     ];
     final dataRows = rows.map<DataRow>((row) {
       final cells = <DataCell>[];
-      for (var index = 0; index < 7; index++) {
-        if (index == 6) {
-          cells.add(DataCell(IconButton(onPressed: () => _message('Opening ${row[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17), tooltip: 'View')));
-        } else if (index == 4 || index == 5) {
+      for (var index = 0; index < row.length; index++) {
+        if (index == 4 || index == 5) {
           final color = row[index] == 'Pending' ? const Color(0xFFE59A00) : const Color(0xFF16A05D);
           cells.add(DataCell(_smallStatus(row[index], color)));
         } else {
-          cells.add(DataCell(Text(row[index], style: TextStyle(fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500))));
+          cells.add(DataCell(Text(
+            row[index],
+            style: TextStyle(
+              fontWeight: index == 0 ? FontWeight.w700 : FontWeight.w500,
+              color: const Color(0xFF26384F),
+            ),
+          )));
         }
       }
+      cells.add(DataCell(IconButton(
+        onPressed: () => _message('Opening ${row[0]}'),
+        icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17),
+        tooltip: 'View',
+      )));
       return DataRow(cells: cells);
     }).toList();
 
