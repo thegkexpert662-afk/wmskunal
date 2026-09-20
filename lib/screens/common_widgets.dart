@@ -241,6 +241,51 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
+class HorizontalTableScroller extends StatefulWidget {
+  final Widget child;
+
+  const HorizontalTableScroller({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  State<HorizontalTableScroller> createState() => _HorizontalTableScrollerState();
+}
+
+class _HorizontalTableScrollerState extends State<HorizontalTableScroller> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 9,
+      radius: const Radius.circular(6),
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 8),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 class DataTableCard extends StatelessWidget {
   final List<String> headers;
   final List<List<String>> rows;
@@ -304,8 +349,7 @@ class DataTableCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalTableScroller(
           child: DataTable(
             headingRowHeight: 48,
             dataRowMinHeight: 52,
