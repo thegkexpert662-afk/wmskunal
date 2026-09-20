@@ -1,0 +1,150 @@
+const router = require('express').Router();
+const { z } = require('zod');
+
+const pool = require('../config/db');
+const { requireAuth } = require('../middleware/auth');
+const { requireCompanyModule } = require('../middleware/company');
+const { requireRole } = require('../middleware/role');
+
+const grnSchema = z.object({
+  grnNo: z.string().trim().min(1).max(60),
+  supplierName: z.string().trim().max(200).optional(),
+  invoiceNo: z.string().trim().max(100).optional(),
+  warehouseId: z.string().uuid().optional(),
+  receivedAt: z.string().datetime().optional(),
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    receivedQty: z.number().positive(),
+  })).min(1),
+});
+
+router.use(requireAuth, requireRole('admin'), requireCompanyModule('grn'));
+
+router.get('/', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      \`SELECT g.id, g.grn_no, g.supplier_name, g.invoice_no, g.status,
+              g.received_at, g.created_at, w.name AS warehouse
+       FROM grns g
+       LEFT JOIN warehouses w ON w.id = g.warehouse_id
+       WHERE g.company_id = $1
+       ORDER BY g.created_at DESC
+       LIMIT 100\`,
+      [req.user.companyId],
+    );
+    return res.json({ data: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      \`SELECT g.*, w.name AS warehouse
+       FROM grns g
+       LEFT JOIN warehouses w ON w.id = g.warehouse_id
+       WHERE g.id = $1 AND g.company_id = $2\`,
+      [req.params.id, req.user.companyId],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: { code: 'GRN_NOT_FOUND', message: 'GRN not found.' },
+      });
+    }
+
+    const items = await pool.query(
+      \`SELECT gi.id, gi.product_id, p.sku, p.name, gi.received_qty, gi.qc_status
+       FROM grn_items gi
+       JOIN products p ON p.id = gi.product_id
+       JOIN grns g ON g.id = gi.grn_id
+       WHERE gi.grn_id = $1 AND g.company_id = $2
+       ORDER BY gi.created_at\`,
+      [req.params.id, req.user.companyId],
+    );
+
+    return res.json({ data: { ...result.rows[0], items: items.rows } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/', async (req, res, next) => {
+  const client = await pool.connect();
+
+  try {
+    const input = grnSchema.parse(req.body);
+
+    await client.query('BEGIN');
+
+    const grn = await client.query(
+      \`INSERT INTO grns
+        (company_id, grn_no, supplier_name, invoice_no, warehouse_id, received_at, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, 'received', $7)
+       RETURNING id, grn_no, status, created_at\`,
+      [
+        req.user.companyId,
+        input.grnNo,
+        input.supplierName || null,
+        input.invoiceNo || null,
+        input.warehouseId || null,
+        input.receivedAt ? new Date(input.receivedAt) : new Date(),
+        req.user.sub,
+      ],
+    );
+
+    for (const item of input.items) {
+      const product = await client.query(
+        'SELECT id FROM products WHERE id = $1 AND company_id = $2 AND is_active = TRUE',
+        [item.productId, req.user.companyId],
+      );
+
+      if (product.rowCount === 0) {
+        const error = new Error('Product does not belong to this company.');
+        error.statusCode = 400;
+        error.code = 'INVALID_PRODUCT';
+        throw error;
+      }
+
+      await client.query(
+        \`INSERT INTO grn_items (grn_id, product_id, received_qty)
+         VALUES ($1, $2, $3)\`,
+        [grn.rows[0].id, item.productId, item.receivedQty],
+      );
+    }
+
+    await client.query(
+      \`INSERT INTO audit_logs
+        (company_id, user_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $2, 'CREATE_GRN', 'grn', $3, $4::jsonb)\`,
+      [
+        req.user.companyId,
+        req.user.sub,
+        grn.rows[0].id,
+        JSON.stringify({ grnNo: input.grnNo, itemCount: input.items.length }),
+      ],
+    );
+
+    await client.query('COMMIT');
+
+    return res.status(201).json({ data: grn.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid GRN request.' },
+      });
+    }
+    if (error.code === '23505') {
+      return res.status(409).json({
+        error: { code: 'GRN_ALREADY_EXISTS', message: 'GRN number already exists for this company.' },
+      });
+    }
+    return next(error);
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;
