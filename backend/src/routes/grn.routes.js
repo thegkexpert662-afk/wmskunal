@@ -48,7 +48,7 @@ router.get('/:id', requirePermission('grn.read'), async (req, res, next) => {
        FROM grns g
        LEFT JOIN warehouses w ON w.id = g.warehouse_id
        WHERE g.id = $1 AND g.company_id = $2`,
-      [req.params.id, req.user.companyId],
+      [req.params.id, req.tenant.companyId],
     );
 
     if (result.rowCount === 0) {
@@ -64,7 +64,7 @@ router.get('/:id', requirePermission('grn.read'), async (req, res, next) => {
        JOIN grns g ON g.id = gi.grn_id
        WHERE gi.grn_id = $1 AND g.company_id = $2
        ORDER BY gi.created_at`,
-      [req.params.id, req.user.companyId],
+      [req.params.id, req.tenant.companyId],
     );
 
     return res.json({ data: { ...result.rows[0], items: items.rows } });
@@ -87,7 +87,7 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5, $6, 'received', $7)
        RETURNING id, grn_no, status, created_at`,
       [
-        req.user.companyId,
+        req.tenant.companyId,
         input.grnNo,
         input.supplierName || null,
         input.invoiceNo || null,
@@ -100,7 +100,7 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
     for (const item of input.items) {
       const product = await client.query(
         'SELECT id FROM products WHERE id = $1 AND company_id = $2 AND is_active = TRUE',
-        [item.productId, req.user.companyId],
+        [item.productId, req.tenant.companyId],
       );
 
       if (product.rowCount === 0) {
@@ -122,7 +122,7 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
         (company_id, user_id, action, entity_type, entity_id, metadata)
        VALUES ($1, $2, 'CREATE_GRN', 'grn', $3, $4::jsonb)`,
       [
-        req.user.companyId,
+        req.tenant.companyId,
         req.user.sub,
         grn.rows[0].id,
         JSON.stringify({ grnNo: input.grnNo, itemCount: input.items.length }),
