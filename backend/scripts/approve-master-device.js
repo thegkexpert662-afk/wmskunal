@@ -9,42 +9,57 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 function ask(question) {
-  return new Promise((resolve) => rl.question(question, resolve));
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
 }
 
 function askSecret(question) {
-  return new Promise((resolve) => {
-    process.stdout.write(question);
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
+  return new Promise((resolve, reject) => {
+    const input = process.stdin;
+    const output = process.stdout;
+
+    if (!input.isTTY || typeof input.setRawMode !== 'function') {
+      reject(new Error('Secure password input requires an interactive terminal.'));
+      return;
+    }
+
+    output.write(question);
+    input.setRawMode(true);
+    input.resume();
+
     let value = '';
 
     const onData = (chunk) => {
-      const input = chunk.toString('utf8');
+      const text = chunk.toString('utf8');
 
-      for (const char of input) {
-        if (char === '\\u0003') {
-          process.stdin.setRawMode(false);
-          process.stdin.removeListener('data', onData);
+      for (const char of text) {
+        if (char === '\u0003') {
+          cleanup();
           process.exit(130);
         }
 
-        if (char === '\\r' || char === '\\n') {
-          process.stdin.setRawMode(false);
-          process.stdin.removeListener('data', onData);
-          process.stdout.write('\\n');
+        if (char === '\r' || char === '\n') {
+          cleanup();
+          output.write('\\n');
           resolve(value);
           return;
         }
 
-        if (char === '\\u007f' || char === '\\b') {
-          value = value.slice(0, -1);
+        if (char === '\u007f' || char === '\b') {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            output.write('\\b \\b');
+          }
           continue;
         }
 
@@ -52,7 +67,13 @@ function askSecret(question) {
       }
     };
 
-    process.stdin.on('data', onData);
+    function cleanup() {
+      input.setRawMode(false);
+      input.removeListener('data', onData);
+      input.pause();
+    }
+
+    input.on('data', onData);
   });
 }
 
@@ -166,7 +187,6 @@ async function main() {
     process.exitCode = 1;
   } finally {
     client.release();
-    rl.close();
     await pool.end();
   }
 }
