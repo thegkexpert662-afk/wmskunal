@@ -3,7 +3,7 @@ const { z } = require('zod');
 
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
-const { requireDeviceEnrollmentToken } = require('../middleware/device');
+const { requireDeviceEnrollmentToken, requireApprovedDevice } = require('../middleware/device');
 const { requireRole } = require('../middleware/role');
 
 const registerSchema = z.object({
@@ -42,7 +42,7 @@ router.post('/register', requireAuth, requireDeviceEnrollmentToken, async (req, 
   }
 });
 
-router.get('/pending', requireAuth, requireRole('master_admin'), async (_req, res, next) => {
+router.get('/pending', requireAuth, requireApprovedDevice, requireRole('master_admin'), async (_req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT d.id, d.company_id, d.user_id, d.device_name, d.device_type,
@@ -57,7 +57,7 @@ router.get('/pending', requireAuth, requireRole('master_admin'), async (_req, re
   } catch (error) { return next(error); }
 });
 
-router.get('/', requireAuth, requireRole('master_admin'), async (_req, res, next) => {
+router.get('/', requireAuth, requireApprovedDevice, requireRole('master_admin'), async (_req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT d.id, d.company_id, d.user_id, d.device_name, d.device_type,
@@ -71,7 +71,7 @@ router.get('/', requireAuth, requireRole('master_admin'), async (_req, res, next
   } catch (error) { return next(error); }
 });
 
-router.patch('/:id/status', requireAuth, requireRole('master_admin'), async (req, res, next) => {
+router.patch('/:id/status', requireAuth, requireApprovedDevice, requireRole('master_admin'), async (req, res, next) => {
   try {
     const input = statusSchema.parse(req.body);
 
