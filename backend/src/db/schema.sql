@@ -439,3 +439,42 @@ CREATE INDEX IF NOT EXISTS idx_inventory_txn_sto
 CREATE INDEX IF NOT EXISTS idx_inventory_txn_source_destination
   ON inventory_transactions(company_id, source_warehouse_id, destination_warehouse_id);
 
+
+
+-- ============================================================
+-- RBAC permission seed
+-- ============================================================
+
+INSERT INTO permissions (permission_key, description) VALUES
+  ('device.read', 'View device authentication records'),
+  ('device.approve', 'Approve, reject, or revoke devices'),
+  ('grn.read', 'View GRNs'),
+  ('grn.create', 'Create GRNs'),
+  ('company.read', 'View company records'),
+  ('user.read', 'View users and roles'),
+  ('user.manage', 'Create or manage users and roles'),
+  ('system.manage', 'Manage technical system settings'),
+  ('security.audit.read', 'View security and audit records')
+ON CONFLICT (permission_key) DO UPDATE
+SET description = EXCLUDED.description;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT 'master_admin', p.id
+FROM permissions p
+WHERE p.permission_key IN (
+  'device.read',
+  'device.approve',
+  'company.read',
+  'user.read',
+  'user.manage',
+  'system.manage',
+  'security.audit.read'
+)
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT 'admin', p.id
+FROM permissions p
+WHERE p.permission_key IN ('grn.read', 'grn.create')
+ON CONFLICT (role, permission_id) DO NOTHING;
+
