@@ -89,10 +89,10 @@ async function main() {
     }
 
     const userResult = await client.query(
-      \`SELECT id, username, full_name, role, is_active, password_hash, company_id
-       FROM users
-       WHERE username = $1
-       LIMIT 1\`,
+      'SELECT id, username, full_name, role, is_active, password_hash, company_id ' +
+      'FROM users ' +
+      'WHERE username = $1 ' +
+      'LIMIT 1',
       [username],
     );
 
@@ -113,11 +113,11 @@ async function main() {
     }
 
     const devicesResult = await client.query(
-      \`SELECT id, device_name, device_type, credential_id, first_registered_at
-       FROM devices
-       WHERE user_id = $1
-         AND status = 'pending'
-       ORDER BY first_registered_at ASC\`,
+      'SELECT id, device_name, device_type, credential_id, first_registered_at ' +
+      'FROM devices ' +
+      'WHERE user_id = $1 ' +
+      "AND status = 'pending' " +
+      'ORDER BY first_registered_at ASC',
       [user.id],
     );
 
@@ -129,7 +129,11 @@ async function main() {
     console.log('\nPending devices:');
     devicesResult.rows.forEach((device, index) => {
       console.log(
-        \`[\${index + 1}] \${device.id} | \${device.device_name || 'Unnamed'} | \${device.device_type || 'Unknown'} | registered \${device.first_registered_at.toISOString()}\`,
+        '[' + (index + 1) + '] ' +
+        device.id + ' | ' +
+        (device.device_name || 'Unnamed') + ' | ' +
+        (device.device_type || 'Unknown') + ' | registered ' +
+        device.first_registered_at.toISOString(),
       );
     });
 
@@ -145,17 +149,15 @@ async function main() {
 
     await client.query('BEGIN');
 
-    // Authoritative server-side check: approve only a pending device
-    // that belongs to this authenticated Master Admin.
     const updateResult = await client.query(
-      \`UPDATE devices
-       SET status = 'approved',
-           approved_by = $1,
-           approved_at = NOW()
-       WHERE id = $2::uuid
-         AND user_id = $1
-         AND status = 'pending'
-       RETURNING id, device_name, device_type, status, approved_at\`,
+      'UPDATE devices ' +
+      "SET status = 'approved', " +
+      'approved_by = $1, ' +
+      'approved_at = NOW() ' +
+      'WHERE id = $2::uuid ' +
+      'AND user_id = $1 ' +
+      "AND status = 'pending' " +
+      'RETURNING id, device_name, device_type, status, approved_at',
       [user.id, deviceId],
     );
 
@@ -166,9 +168,9 @@ async function main() {
     }
 
     await client.query(
-      \`INSERT INTO audit_logs
-        (company_id, user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, $2, 'DEVICE_APPROVED_BOOTSTRAP', 'device', $3, $4::jsonb)\`,
+      'INSERT INTO audit_logs ' +
+      '(company_id, user_id, action, entity_type, entity_id, metadata) ' +
+      "VALUES ($1, $2, 'DEVICE_APPROVED_BOOTSTRAP', 'device', $3, $4::jsonb)",
       [
         user.company_id || null,
         user.id,
@@ -191,7 +193,7 @@ async function main() {
     } catch (_) {
       // Ignore rollback errors after a failed transaction.
     }
-    console.error(\`\nFailed: \${error.message}\`);
+    console.error('\nFailed: ' + error.message);
     process.exitCode = 1;
   } finally {
     client.release();
