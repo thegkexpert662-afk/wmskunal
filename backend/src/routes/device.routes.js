@@ -3,6 +3,7 @@ const { z } = require('zod');
 
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { requireDeviceEnrollmentToken } = require('../middleware/device');
 const { requireRole } = require('../middleware/role');
 
 const registerSchema = z.object({
@@ -15,7 +16,7 @@ const statusSchema = z.object({
   status: z.enum(['approved', 'rejected', 'revoked']),
 });
 
-router.post('/register', requireAuth, async (req, res, next) => {
+router.post('/register', requireAuth, requireDeviceEnrollmentToken, async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
     const existing = await pool.query(
