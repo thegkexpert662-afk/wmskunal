@@ -81,6 +81,20 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
 
     await client.query('BEGIN');
 
+    if (input.warehouseId) {
+      const warehouse = await client.query(
+        'SELECT id FROM warehouses WHERE id = $1 AND company_id = $2 AND is_active = TRUE',
+        [input.warehouseId, req.tenant.companyId],
+      );
+
+      if (warehouse.rowCount === 0) {
+        const error = new Error('Warehouse does not belong to this company.');
+        error.statusCode = 400;
+        error.code = 'INVALID_WAREHOUSE';
+        throw error;
+      }
+    }
+
     const grn = await client.query(
       `INSERT INTO grns
         (company_id, grn_no, supplier_name, invoice_no, warehouse_id, received_at, status, created_by)
