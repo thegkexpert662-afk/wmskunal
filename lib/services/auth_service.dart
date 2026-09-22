@@ -89,6 +89,43 @@ class AuthService {
     return session;
   }
 
+  Future<List<Map<String, dynamic>>> getDevices() async {
+    final token = _session?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw AuthException('SESSION_REQUIRED', 'Please login again.');
+    }
+    final response = await http.get(
+      Uri.parse('$_apiBaseUrl/devices'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200) throw _exceptionFromResponse(response);
+    final body = _decodeBody(response);
+    final data = body['devices'];
+    if (data is! List) return <Map<String, dynamic>>[];
+    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> updateDeviceStatus({
+    required String deviceId,
+    required String status,
+  }) async {
+    final token = _session?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw AuthException('SESSION_REQUIRED', 'Please login again.');
+    }
+    final response = await http.patch(
+      Uri.parse('$_apiBaseUrl/devices/$deviceId/status'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'status': status}),
+    );
+    if (response.statusCode != 200) throw _exceptionFromResponse(response);
+    final body = _decodeBody(response);
+    return Map<String, dynamic>.from(body['device'] as Map);
+  }
+
   Future<void> logout() async { _session = null; }
 
   Map<String, dynamic> _decodeBody(http.Response response) {
