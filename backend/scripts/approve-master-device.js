@@ -18,19 +18,57 @@ function ask(question) {
   return new Promise((resolve) => rl.question(question, resolve));
 }
 
+function askSecret(question) {
+  return new Promise((resolve) => {
+    process.stdout.write(question);
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    let value = '';
+
+    const onData = (chunk) => {
+      const input = chunk.toString('utf8');
+
+      for (const char of input) {
+        if (char === '\\u0003') {
+          process.stdin.setRawMode(false);
+          process.stdin.removeListener('data', onData);
+          process.exit(130);
+        }
+
+        if (char === '\\r' || char === '\\n') {
+          process.stdin.setRawMode(false);
+          process.stdin.removeListener('data', onData);
+          process.stdout.write('\\n');
+          resolve(value);
+          return;
+        }
+
+        if (char === '\\u007f' || char === '\\b') {
+          value = value.slice(0, -1);
+          continue;
+        }
+
+        value += char;
+      }
+    };
+
+    process.stdin.on('data', onData);
+  });
+}
+
 async function main() {
   const client = await pool.connect();
 
   try {
     const username = (await ask('Master Admin username: ')).trim();
-    const password = await ask('Master Admin password: ');
+    const password = await askSecret('Master Admin password: ');
 
     if (!username || !password) {
       throw new Error('Username and password are required.');
     }
 
     const userResult = await client.query(
-      `SELECT id, username, full_name, role, is_active, password_hash
+      `SELECT id, username, full_name, role, is_active, password_hash, company_id
        FROM users
        WHERE username = $1
        LIMIT 1`,
