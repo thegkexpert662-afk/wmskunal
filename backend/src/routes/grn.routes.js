@@ -6,6 +6,8 @@ const { requireAuth } = require('../middleware/auth');
 const { requireApprovedDevice } = require('../middleware/device');
 const { requireCompanyModule } = require('../middleware/company');
 const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/permission');
+const { requireTenantContext } = require('../middleware/tenant');
 
 const grnSchema = z.object({
   grnNo: z.string().trim().min(1).max(60),
@@ -19,9 +21,9 @@ const grnSchema = z.object({
   })).min(1),
 });
 
-router.use(requireAuth, requireApprovedDevice, requireRole('admin'), requireCompanyModule('grn'));
+router.use(requireAuth, requireApprovedDevice, requireTenantContext, requireRole('admin'), requireCompanyModule('grn'));
 
-router.get('/', async (req, res, next) => {
+router.get('/', requirePermission('grn.read'), async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT g.id, g.grn_no, g.supplier_name, g.invoice_no, g.status,
@@ -31,7 +33,7 @@ router.get('/', async (req, res, next) => {
        WHERE g.company_id = $1
        ORDER BY g.created_at DESC
        LIMIT 100`,
-      [req.user.companyId],
+      [req.tenant.companyId],
     );
     return res.json({ data: result.rows });
   } catch (error) {
@@ -39,7 +41,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requirePermission('grn.read'), async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT g.*, w.name AS warehouse
@@ -71,7 +73,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', requirePermission('grn.create'), async (req, res, next) => {
   const client = await pool.connect();
 
   try {
