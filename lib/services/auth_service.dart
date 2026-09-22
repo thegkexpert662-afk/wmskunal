@@ -41,9 +41,25 @@ class AuthService {
     final credentialId = await _storedDeviceCredential();
     final response = await _postLogin(username: username, password: password, deviceCredentialId: credentialId);
     if (response.statusCode == 200) return _saveSession(response);
+    final body = _decodeBody(response);
+    if (body['error']?['code']?.toString() == 'DEVICE_ENROLLMENT_REQUIRED') {
+      await _registerWithEnrollmentToken(body['enrollmentToken']?.toString());
+      throw AuthException('DEVICE_PENDING', 'This browser has been registered and is waiting for Master Admin approval. After approval, login again.');
+    }
     throw _exceptionFromResponse(response);
   }
 
+  Future<void> _registerWithEnrollmentToken(String? enrollmentToken) async {
+    if (enrollmentToken == null || enrollmentToken.isEmpty) throw AuthException('INVALID_ENROLLMENT_TOKEN', 'Device enrollment could not be started.');
+    final credentialId = await _getOrCreateDeviceCredential();
+    final response = await http.post(
+      Uri.parse('$_apiBaseUrl/devices/register'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $enrollmentToken'},
+      body: jsonEncode({'deviceName': 'WMS Web Browser', 'deviceType': 'Flutter Web Browser', 'credentialId': credentialId}),
+    );
+    if (response.statusCode == 201 || response.statusCode == 409) return;
+    throw _exceptionFromResponse(response);
+  }
   Future<void> enrollCurrentBrowser({required String username, required String password}) async {
     final response = await _postLogin(username: username, password: password);
     if (response.statusCode != 200) throw _exceptionFromResponse(response);
