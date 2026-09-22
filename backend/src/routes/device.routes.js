@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireDeviceEnrollmentToken, requireApprovedDevice } = require('../middleware/device');
 const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/permission');
 
 const registerSchema = z.object({
   deviceName: z.string().trim().min(1).max(150),
@@ -42,7 +43,7 @@ router.post('/register', requireAuth, requireDeviceEnrollmentToken, async (req, 
   }
 });
 
-router.get('/pending', requireAuth, requireApprovedDevice, requireRole('master_admin'), async (_req, res, next) => {
+router.get('/pending', requireAuth, requireApprovedDevice, requireRole('master_admin'), requirePermission('device.read'), requirePermission('device.read'), async (_req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT d.id, d.company_id, d.user_id, d.device_name, d.device_type,
