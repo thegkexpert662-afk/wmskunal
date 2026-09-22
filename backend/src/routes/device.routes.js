@@ -73,22 +73,56 @@ router.get('/', requireAuth, requireRole('master_admin'), async (_req, res, next
 router.patch('/:id/status', requireAuth, requireRole('master_admin'), async (req, res, next) => {
   try {
     const input = statusSchema.parse(req.body);
-    const result = await pool.query(
-      `UPDATE devices
-       SET status = $1,
-           approved_by = CASE WHEN $1 = 'approved' THEN $2 ELSE approved_by END,
-           approved_at = CASE WHEN $1 = 'approved' THEN NOW() ELSE approved_at END
-       WHERE id = $3
-       RETURNING id, company_id, user_id, device_name, device_type, status,
-                 first_registered_at, last_seen_at, approved_by, approved_at`,
-      [input.status, req.user.sub, req.params.id],
-    );
-    if (result.rowCount === 0) return res.status(404).json({ error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found.' } });
+
+    let result;
+    if (input.status === 'approved') {
+      result = await pool.query(
+        `UPDATE devices
+         SET status = 'approved',
+             approved_by = $1,
+             approved_at = NOW()
+         WHERE id = $2
+         RETURNING id, company_id, user_id, device_name, device_type, status,
+                   first_registered_at, last_seen_at, approved_by, approved_at`,
+        [req.user.sub, req.params.id],
+      );
+    } else if (input.status === 'rejected') {
+      result = await pool.query(
+        `UPDATE devices
+         SET status = 'rejected'
+         WHERE id = $1
+         RETURNING id, company_id, user_id, device_name, device_type, status,
+                   first_registered_at, last_seen_at, approved_by, approved_at`,
+        [req.params.id],
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE devices
+         SET status = 'revoked'
+         WHERE id = $1
+         RETURNING id, company_id, user_id, device_name, device_type, status,
+                   first_registered_at, last_seen_at, approved_by, approved_at`,
+        [req.params.id],
+      );
+    }
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found.' },
+      });
+    }
+
     await pool.query(
       `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
        VALUES ($1, $2, 'device', $3, $4::jsonb)`,
-      [req.user.sub, 'DEVICE_' + input.status.toUpperCase(), req.params.id, JSON.stringify({ status: input.status })],
+      [
+        req.user.sub,
+        'DEVICE_' + input.status.toUpperCase(),
+        req.params.id,
+        JSON.stringify({ status: input.status }),
+      ],
     );
+
     return res.json({ device: result.rows[0] });
   } catch (error) {
     if (error.name === 'ZodError') return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid device status.' } });
