@@ -20,7 +20,7 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (configuredOrigins.includes(origin)) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production' && /^https?:\\/\\/(localhost|127\\.0\\.0\\.1)(:\\d+)?$/.test(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     return callback(new Error('CORS origin not allowed.'));
   },
   credentials: true,
