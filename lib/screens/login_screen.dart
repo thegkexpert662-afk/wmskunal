@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../assets/kopersay_logo_data.dart';
 import '../models/app_role.dart';
+import '../services/auth_service.dart';
 import 'wms_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool obscurePassword = true;
   bool rememberMe = false;
+  bool loading = false;
 
   @override
   void dispose() {
@@ -27,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void login() {
+  Future<void> login() async {
     if (username.text.trim().isEmpty || password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Username and password are required.')),
@@ -35,13 +37,47 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Temporary frontend role resolver. Replace this with the authenticated
-    // backend response when the Node.js API is connected.
-    final role = roleFromUsername(username.text);
+    setState(() => loading = true);
+    try {
+      final session = await AuthService.instance.login(
+        username: username.text.trim(),
+        password: password.text,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => WmsShell(role: appRoleFromBackend(session.role))),
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      if (error.code == 'DEVICE_REQUIRED' || error.code == 'DEVICE_NOT_APPROVED') {
+        _showMessage(error.message);
+      } else if (error.code == 'INVALID_CREDENTIALS') {
+        _showMessage('Invalid username or password.');
+      } else {
+        try {
+          await AuthService.instance.enrollCurrentBrowser(
+            username: username.text.trim(),
+            password: password.text,
+          );
+          if (!mounted) return;
+          _showMessage('This browser is waiting for Master Admin device approval. After approval, login again.');
+        } on AuthException catch (enrollmentError) {
+          if (!mounted) return;
+          _showMessage(enrollmentError.message);
+        }
+      }
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Unable to connect to the WMS server. Please check the API and try again.');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => WmsShell(role: role)),
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -194,9 +230,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 54,
                     child: FilledButton.icon(
-                      onPressed: login,
-                      icon: const Icon(Icons.lock_open_outlined),
-                      label: const Text('Login'),
+                      onPressed: loading ? null : login,
+                      icon: loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.lock_open_outlined),
+                      label: Text(loading ? 'Signing in...' : 'Login'),
                     ),
                   ),
                   const SizedBox(height: 16),
