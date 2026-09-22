@@ -46,35 +46,31 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => WmsShell(role: appRoleFromBackend(session.role))),
+        MaterialPageRoute(
+          builder: (_) => WmsShell(role: appRoleFromBackend(session.role)),
+        ),
       );
     } on AuthException catch (error) {
       if (!mounted) return;
-      if (error.code == 'DEVICE_REQUIRED' || error.code == 'DEVICE_NOT_APPROVED') {
+      if (error.code == 'DEVICE_PENDING') {
+        _showMessage(error.message);
+      } else if (error.code == 'DEVICE_REQUIRED' ||
+          error.code == 'DEVICE_NOT_APPROVED') {
         _showMessage(error.message);
       } else if (error.code == 'INVALID_CREDENTIALS') {
         _showMessage('Invalid username or password.');
       } else {
-        try {
-          await AuthService.instance.enrollCurrentBrowser(
-            username: username.text.trim(),
-            password: password.text,
-          );
-          if (!mounted) return;
-          _showMessage('This browser is waiting for Master Admin device approval. After approval, login again.');
-        } on AuthException catch (enrollmentError) {
-          if (!mounted) return;
-          _showMessage(enrollmentError.message);
-        }
+        _showMessage(error.message);
       }
     } catch (_) {
       if (!mounted) return;
-      _showMessage('Unable to connect to the WMS server. Please check the API and try again.');
+      _showMessage(
+        'Unable to connect to the WMS server. Please check the API and try again.',
+      );
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
-
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
