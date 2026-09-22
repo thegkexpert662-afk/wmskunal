@@ -3,6 +3,7 @@ const { z } = require('zod');
 
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { requireApprovedDevice } = require('../middleware/device');
 const { requireCompanyModule } = require('../middleware/company');
 const { requireRole } = require('../middleware/role');
 
@@ -18,7 +19,7 @@ const grnSchema = z.object({
   })).min(1),
 });
 
-router.use(requireAuth, requireRole('admin'), requireCompanyModule('grn'));
+router.use(requireAuth, requireApprovedDevice, requireRole('admin'), requireCompanyModule('grn'));
 
 router.get('/', async (req, res, next) => {
   try {
