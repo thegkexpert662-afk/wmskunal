@@ -17,6 +17,15 @@ extension AppRoleLabel on AppRole {
   }
 }
 
+AppRole appRoleFromBackend(String role) {
+  switch (role.trim().toLowerCase()) {
+    case 'master_admin': return AppRole.masterAdmin;
+    case 'client': return AppRole.client;
+    case 'admin':
+    default: return AppRole.admin;
+  }
+}
+
 AppRole roleFromUsername(String username) {
   final value = username.trim().toLowerCase();
   if (value.contains('master')) return AppRole.masterAdmin;
