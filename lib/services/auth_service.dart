@@ -22,13 +22,13 @@ class AuthService {
   AuthSession? get session => _session;
 
   Future<String?> _storedDeviceCredential() async {
-    final prefs = SharedPreferencesAsync();
+    final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_deviceCredentialKey);
   }
 
   Future<String> _getOrCreateDeviceCredential() async {
-    final prefs = SharedPreferencesAsync();
-    final existing = await prefs.getString(_deviceCredentialKey);
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_deviceCredentialKey);
     if (existing != null && existing.isNotEmpty) return existing;
     final random = Random.secure();
     final suffix = List<int>.generate(24, (_) => random.nextInt(256)).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
