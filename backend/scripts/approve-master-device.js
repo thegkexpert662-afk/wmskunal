@@ -50,7 +50,7 @@ function askSecret(question) {
 
         if (char === '\r' || char === '\n') {
           cleanup();
-          output.write('\\n');
+          output.write('\n');
           resolve(value);
           return;
         }
@@ -58,7 +58,7 @@ function askSecret(question) {
         if (char === '\u007f' || char === '\b') {
           if (value.length > 0) {
             value = value.slice(0, -1);
-            output.write('\\b \\b');
+            output.write('\b \b');
           }
           continue;
         }
@@ -89,10 +89,10 @@ async function main() {
     }
 
     const userResult = await client.query(
-      `SELECT id, username, full_name, role, is_active, password_hash, company_id
+      \`SELECT id, username, full_name, role, is_active, password_hash, company_id
        FROM users
        WHERE username = $1
-       LIMIT 1`,
+       LIMIT 1\`,
       [username],
     );
 
@@ -113,54 +113,62 @@ async function main() {
     }
 
     const devicesResult = await client.query(
-      `SELECT id, device_name, device_type, credential_id, first_registered_at
+      \`SELECT id, device_name, device_type, credential_id, first_registered_at
        FROM devices
        WHERE user_id = $1
          AND status = 'pending'
-       ORDER BY first_registered_at ASC`,
+       ORDER BY first_registered_at ASC\`,
       [user.id],
     );
 
     if (devicesResult.rowCount === 0) {
-      console.log('No pending device was found for this Master Admin.');
+      console.log('\nNo pending device was found for this Master Admin.');
       return;
     }
 
-    console.log('\\nPending devices:');
+    console.log('\nPending devices:');
     devicesResult.rows.forEach((device, index) => {
       console.log(
-        `[${index + 1}] ${device.id} | ${device.device_name || 'Unnamed'} | ${device.device_type || 'Unknown'} | registered ${device.first_registered_at.toISOString()}`,
+        \`[\${index + 1}] \${device.id} | \${device.device_name || 'Unnamed'} | \${device.device_type || 'Unknown'} | registered \${device.first_registered_at.toISOString()}\`,
       );
     });
 
-    const deviceId = (await ask('\\nEnter the exact Device ID to approve: ')).trim();
+    const deviceIdInput = await ask('\nEnter the exact Device ID to approve: ');
+    const deviceId = deviceIdInput.trim().toLowerCase();
 
-    if (!devicesResult.rows.some((device) => device.id === deviceId)) {
-      throw new Error('That Device ID is not one of the pending devices for this Master Admin.');
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!uuidPattern.test(deviceId)) {
+      throw new Error('Invalid Device ID format.');
     }
 
     await client.query('BEGIN');
 
+    // Authoritative server-side check: approve only a pending device
+    // that belongs to this authenticated Master Admin.
     const updateResult = await client.query(
-      `UPDATE devices
+      \`UPDATE devices
        SET status = 'approved',
            approved_by = $1,
            approved_at = NOW()
-       WHERE id = $2
+       WHERE id = $2::uuid
          AND user_id = $1
          AND status = 'pending'
-       RETURNING id, device_name, device_type, status, approved_at`,
+       RETURNING id, device_name, device_type, status, approved_at\`,
       [user.id, deviceId],
     );
 
     if (updateResult.rowCount !== 1) {
-      throw new Error('Device approval failed because its state changed or it no longer belongs to this Master Admin.');
+      throw new Error(
+        'Device approval failed: the device was not pending for this Master Admin or its state changed.',
+      );
     }
 
     await client.query(
-      `INSERT INTO audit_logs
+      \`INSERT INTO audit_logs
         (company_id, user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, $2, 'DEVICE_APPROVED_BOOTSTRAP', 'device', $3, $4::jsonb)`,
+       VALUES ($1, $2, 'DEVICE_APPROVED_BOOTSTRAP', 'device', $3, $4::jsonb)\`,
       [
         user.company_id || null,
         user.id,
@@ -174,7 +182,7 @@ async function main() {
 
     await client.query('COMMIT');
 
-    console.log('\\nDevice approved successfully.');
+    console.log('\nDevice approved successfully.');
     console.log(updateResult.rows[0]);
     console.log('You can now log in from that Chrome device.');
   } catch (error) {
@@ -183,7 +191,7 @@ async function main() {
     } catch (_) {
       // Ignore rollback errors after a failed transaction.
     }
-    console.error(`\\nFailed: ${error.message}`);
+    console.error(\`\nFailed: \${error.message}\`);
     process.exitCode = 1;
   } finally {
     client.release();
