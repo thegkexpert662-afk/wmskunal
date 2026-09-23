@@ -22,7 +22,7 @@ class _AdminInvoiceScreenState extends State<AdminInvoiceScreen> {
   @override
   void initState() {
     super.initState();
-    search.addListener(load);
+    search.addListener(() { load(); });
     load();
   }
 
@@ -347,14 +347,13 @@ class _AdminInvoiceScreenState extends State<AdminInvoiceScreen> {
     );
   }
 
-  Widget _detail(String label, String value, IconData icon) {
+  Widget _detail(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
-        Icon(icon, size: 16, color: const Color(0xFF72849A)),
-        const SizedBox(width: 9),
         Expanded(child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096)))),
-        Flexible(child: Text(value, textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF26384F)))),
+        Flexible(child: Text(value, textAlign: TextAlign.right,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF26384F)))),
       ]),
     );
   }
