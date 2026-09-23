@@ -598,6 +598,11 @@ INSERT INTO permissions (permission_key, description) VALUES
   ('warehouse.read', 'View warehouses and locations'),
   ('warehouse.manage', 'Create or manage warehouses and locations'),
   ('inventory.read', 'View inventory'),
+  ('stock_transfer.read', 'View stock transfer orders'),
+  ('stock_transfer.manage', 'Create and manage stock transfer orders'),
+  ('stock_transfer.approve', 'Approve stock transfer orders'),
+  ('stock_transfer.pick', 'Pick stock transfer orders'),
+  ('stock_transfer.receive', 'Receive stock transfer orders'),
   ('inventory.manage', 'Adjust or manage inventory'),
   ('order.read', 'View orders'),
   ('order.create', 'Create orders'),
@@ -658,6 +663,7 @@ WHERE p.permission_key IN (
   'warehouse.manage',
   'inventory.read',
   'inventory.manage',
+  'stock_transfer.read','stock_transfer.manage','stock_transfer.approve','stock_transfer.pick','stock_transfer.receive',
   'order.read',
   'order.create',
   'order.manage',
@@ -709,6 +715,9 @@ WHERE p.permission_key = CASE r.role
  WHEN 'gate_operator' THEN 'inbound.create'
  WHEN 'inventory_user' THEN 'inventory.manage'
  WHEN 'dispatch_user' THEN 'dispatch.manage'
+ WHEN 'warehouse_manager' THEN 'stock_transfer.manage'
+ WHEN 'warehouse_supervisor' THEN 'stock_transfer.pick'
+ WHEN 'inventory_user' THEN 'stock_transfer.receive'
 END
 ON CONFLICT (role, permission_id) DO NOTHING;
 
