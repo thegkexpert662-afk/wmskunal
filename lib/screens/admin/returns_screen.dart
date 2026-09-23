@@ -455,7 +455,7 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
   Widget build(BuildContext context) {
     final items = (widget.detail['items'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     init(items);
-    final status = value(widget.detail['status']);
+    final status = value(widget.detail['status']).toLowerCase();
 
     return AlertDialog(
       title: Text(value(widget.detail['return_no']) + ' • ' + value(widget.detail['order_no'])),
@@ -485,7 +485,7 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
                 DataCell(Text(value(x['sku']))),
                 DataCell(Text(value(x['product_name']))),
                 DataCell(Text(value(x['returned_qty']))),
-                DataCell(SizedBox(width: 90, child: TextField(controller: accepted[id], enabled: status == 'QC_PENDING', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
+                DataCell(SizedBox(width: 90, child: TextField(controller: accepted[id], enabled: status == 'qc_pending', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
                 DataCell(SizedBox(width: 90, child: TextField(controller: damaged[id], enabled: status == 'QC_PENDING', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
                 DataCell(SizedBox(width: 90, child: TextField(controller: rejected[id], enabled: status == 'QC_PENDING', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
                 DataCell(SizedBox(width: 190, child: DropdownButton<String>(
@@ -493,23 +493,23 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
                   value: locations[id],
                   hint: const Text('Location'),
                   items: warehouseLocations.map((loc) => DropdownMenuItem(value: loc['id'].toString(), child: Text(loc['code'].toString()))).toList(),
-                  onChanged: status == 'QC_PENDING' ? (v) => setState(() => locations[id] = v) : null,
+                  onChanged: status == 'qc_pending' ? (v) => setState(() => locations[id] = v) : null,
                 ))),
                 DataCell(_chip(value(x['qc_result']))),
               ]);
             }).toList(),
           )),
           const SizedBox(height: 10),
-          if (status == 'QC_PENDING')
+          if (status == 'qc_pending')
             OutlinedButton.icon(onPressed: locationLoading ? null : loadLocations, icon: const Icon(Icons.location_on_outlined), label: Text(locationLoading ? 'Loading...' : 'Load Warehouse Locations')),
         ])),
       ),
       actions: [
-        if (status == 'GATE_IN_PENDING')
+        if (status == 'gate_in_pending')
           FilledButton.icon(onPressed: busy ? null : gateIn, icon: const Icon(Icons.login_outlined), label: const Text('Confirm Gate In')),
         if (status == 'QC_PENDING')
           FilledButton.icon(onPressed: busy ? null : completeQc, icon: const Icon(Icons.fact_check_outlined), label: const Text('Complete QC')),
-        if (['REQUESTED','GATE_IN_PENDING','QC_PENDING'].contains(status))
+        if (['requested','gate_in_pending','qc_pending'].contains(status))
           TextButton(onPressed: busy ? null : cancelReturn, child: const Text('Cancel Return')),
         TextButton(onPressed: busy ? null : () => Navigator.pop(context), child: const Text('Close')),
       ],
