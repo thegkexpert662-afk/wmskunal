@@ -99,7 +99,7 @@ class _WmsShellState extends State<WmsShell> {
   Widget page() {
     if (widget.role == AppRole.masterAdmin) {
       switch (selected) {
-        case 0: return const MasterDashboardScreen();
+        case 0: return MasterDashboardScreen(onNavigate: (index) => setState(() => selected = index));
         case 1: return const CompaniesAdminScreen();
         case 2: return const MasterUsersRolesScreen();
         case 3: return const MasterSystemSettingsScreen();
