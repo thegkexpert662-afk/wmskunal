@@ -670,6 +670,9 @@ CREATE INDEX IF NOT EXISTS idx_invoices_order
   ON invoices(company_id, order_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_dispatch
   ON invoices(company_id, dispatch_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_active_order
+  ON invoices(company_id, order_id)
+  WHERE order_id IS NOT NULL AND status <> 'cancelled';
 
 ALTER TABLE returns DROP CONSTRAINT IF EXISTS returns_invoice_id_fkey;
 ALTER TABLE returns ADD CONSTRAINT returns_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES invoices(id);
