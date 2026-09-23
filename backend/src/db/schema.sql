@@ -186,6 +186,37 @@ CREATE TABLE IF NOT EXISTS grn_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS qc_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id),
+  grn_item_id UUID REFERENCES grn_items(id) ON DELETE CASCADE,
+  production_receipt_item_id UUID REFERENCES production_receipt_items(id) ON DELETE CASCADE,
+  result VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (result IN ('pending','approved','rejected','partial')),
+  inspected_qty NUMERIC(18,4) NOT NULL CHECK (inspected_qty > 0),
+  accepted_qty NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (accepted_qty >= 0),
+  rejected_qty NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (rejected_qty >= 0),
+  remarks TEXT,
+  inspected_by UUID REFERENCES users(id),
+  inspected_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (grn_item_id IS NOT NULL AND production_receipt_item_id IS NULL)
+    OR
+    (grn_item_id IS NULL AND production_receipt_item_id IS NOT NULL)
+  ),
+  CHECK (accepted_qty + rejected_qty <= inspected_qty)
+);
+
+CREATE INDEX IF NOT EXISTS idx_qc_company_created
+  ON qc_records(company_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_qc_grn_item
+  ON qc_records(grn_item_id);
+
+CREATE INDEX IF NOT EXISTS idx_qc_production_item
+  ON qc_records(production_receipt_item_id);
+
 CREATE TABLE IF NOT EXISTS putaway_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
