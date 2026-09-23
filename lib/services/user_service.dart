@@ -20,6 +20,13 @@ class UserService {
     return (body['users'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
   }
 
+  Future<List<Map<String,dynamic>>> companies() async {
+    final r=await http.get(Uri.parse('$apiBase/company'),headers:_headers);
+    if(r.statusCode!=200) throw Exception(_error(r));
+    final body=jsonDecode(r.body) as Map;
+    return (body['companies'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+  }
+
   Future<List<Map<String,dynamic>>> roles() async {
     final r=await http.get(Uri.parse('$apiBase/users/roles'),headers:_headers);
     if(r.statusCode!=200) throw Exception(_error(r));
