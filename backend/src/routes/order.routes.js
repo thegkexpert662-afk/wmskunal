@@ -15,6 +15,24 @@ const createSchema = z.object({
   warehouseId: z.string().uuid(),
   requiredDate: z.string().date().optional(),
   remarks: z.string().trim().max(1000).optional(),
+  truckType: z.string().trim().max(100).optional(),
+  transporterName: z.string().trim().max(200).optional(),
+  vehicleNo: z.string().trim().max(60).optional(),
+  driverName: z.string().trim().max(150).optional(),
+  driverMobile: z.string().trim().max(30).optional(),
+  shipmentNo: z.string().trim().max(100).optional(),
+  shipmentDate: z.string().date().optional(),
+  deliveryNo: z.string().trim().max(100).optional(),
+  deliveryDate: z.string().date().optional(),
+  soldByName: z.string().trim().max(200).optional(),
+  soldByAddress: z.string().trim().max(2000).optional(),
+  soldByGstin: z.string().trim().max(20).optional(),
+  soldToName: z.string().trim().max(200).optional(),
+  soldToAddress: z.string().trim().max(2000).optional(),
+  soldToGstin: z.string().trim().max(20).optional(),
+  shipToName: z.string().trim().max(200).optional(),
+  shipToAddress: z.string().trim().max(2000).optional(),
+  shipToGstin: z.string().trim().max(20).optional(),
   items: z.array(z.object({
     productId: z.string().uuid(),
     orderedQty: z.coerce.number().positive(),
@@ -189,10 +207,26 @@ router.post('/', requirePermission('order.create'), async (req, res, next) => {
     }
 
     const order = await db.query(
-      `INSERT INTO orders(company_id, client_id, warehouse_id, order_no, status, required_date, remarks, created_by)
-       VALUES($1, $2, $3, $4, 'draft', $5, $6, $7)
+      `INSERT INTO orders(
+         company_id, client_id, warehouse_id, order_no, status, required_date, remarks, created_by,
+         truck_type, transporter_name, vehicle_no, driver_name, driver_mobile,
+         shipment_no, shipment_date, delivery_no, delivery_date,
+         sold_by_name, sold_by_address, sold_by_gstin,
+         sold_to_name, sold_to_address, sold_to_gstin,
+         ship_to_name, ship_to_address, ship_to_gstin
+       )
+       VALUES(
+         $1, $2, $3, $4, 'draft', $5, $6, $7,
+         $8, $9, $10, $11, $12, $13, $14, $15, $16,
+         $17, $18, $19, $20, $21, $22, $23, $24, $25
+       )
        RETURNING *`,
-      [req.tenant.companyId, clientId, input.warehouseId, input.orderNo, input.requiredDate || null, input.remarks || null, req.user.sub],
+      [req.tenant.companyId, clientId, input.warehouseId, input.orderNo, input.requiredDate || null, input.remarks || null, req.user.sub,
+       input.truckType || null, input.transporterName || null, input.vehicleNo || null, input.driverName || null, input.driverMobile || null,
+       input.shipmentNo || null, input.shipmentDate || null, input.deliveryNo || null, input.deliveryDate || null,
+       input.soldByName || null, input.soldByAddress || null, input.soldByGstin || null,
+       input.soldToName || null, input.soldToAddress || null, input.soldToGstin || null,
+       input.shipToName || null, input.shipToAddress || null, input.shipToGstin || null],
     );
 
     for (const item of input.items) {
