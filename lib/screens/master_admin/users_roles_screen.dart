@@ -133,43 +133,50 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
             ),
           _field(name,'Full Name'),_field(username,'Username',enabled:old==null),_field(email,'Email'),_field(phone,'Phone'),
           _field(emp,'Employee Code'),_field(dept,'Department'),_field(designation,'Designation'),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          InkWell(
             onTap: () async {
+              try {
+                final freshRoles = await service.roles();
+                if (freshRoles.isNotEmpty) roles = freshRoles;
+              } catch (e) {
+                _msg(e.toString().replaceFirst('Exception: ', ''));
+              }
               if (roles.isEmpty) {
-                _msg('No roles received from server. Please restart the backend and refresh.');
+                _msg('No roles received from server.');
                 return;
               }
-              final selectedRole = await showModalBottomSheet<String>(
+              final selectedRole = await showDialog<String>(
                 context: ctx,
-                isScrollControlled: true,
-                builder: (dialogContext) => SafeArea(
-                  child: SizedBox(
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Select Role'),
+                  content: SizedBox(
+                    width: 420,
                     height: 420,
-                    child: Column(
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('Select Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                        ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: ListView(
-                            children: roles.map((r) {
-                              final key = r['key'].toString();
-                              final labelText = r['label']?.toString() ?? key;
-                              return ListTile(
-                                title: Text(labelText),
-                                subtitle: Text(key),
-                                trailing: key == selected ? const Icon(Icons.check_circle) : null,
-                                onTap: () => Navigator.pop(dialogContext, key),
-                              );
-                            }).toList(),
+                    child: ListView.builder(
+                      itemCount: roles.length,
+                      itemBuilder: (_, index) {
+                        final r = roles[index];
+                        final key = r['key'].toString();
+                        final roleLabel = r['label']?.toString() ?? key;
+                        return ListTile(
+                          leading: Icon(
+                            key == selected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
                           ),
-                        ),
-                      ],
+                          title: Text(roleLabel),
+                          subtitle: Text(key),
+                          onTap: () => Navigator.of(dialogContext).pop(key),
+                        );
+                      },
                     ),
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
                 ),
               );
               if (selectedRole != null) {
