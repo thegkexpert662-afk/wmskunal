@@ -127,6 +127,7 @@ router.get('/tasks/:id', requirePermission('picking.read'), async (req,res,next)
        JOIN orders o ON o.id=pt.order_id
        JOIN warehouses w ON w.id=o.warehouse_id
        JOIN clients c ON c.id=o.client_id
+       JOIN companies co ON co.id=o.company_id
        LEFT JOIN users u ON u.id=pt.picker_id
        WHERE pt.id=$1 AND pt.company_id=$2 ${scope}
        LIMIT 1`,params);
