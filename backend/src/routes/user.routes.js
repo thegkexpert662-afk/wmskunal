@@ -270,6 +270,20 @@ router.post(
       if (!company.rowCount) return res.status(404).json({ error: { code: 'COMPANY_NOT_FOUND', message: 'Company not found.' } });
       if (!company.rows[0].is_active) return res.status(403).json({ error: { code: 'COMPANY_INACTIVE', message: 'Cannot create a user for an inactive company.' } });
 
+      const normalizedUsername = input.username.trim().toLowerCase();
+      const existingUsername = await pool.query(
+        'SELECT id FROM users WHERE LOWER(TRIM(username)) = $1 LIMIT 1',
+        [normalizedUsername],
+      );
+      if (existingUsername.rowCount) {
+        return res.status(409).json({
+          error: {
+            code: 'USERNAME_EXISTS',
+            message: 'Username already exists. Please choose a different username.',
+          },
+        });
+      }
+
       await db.query('BEGIN');
       const passwordHash = await argon2.hash(input.password);
       const inserted = await db.query(
@@ -277,7 +291,7 @@ router.post(
           (company_id, employee_code, username, email, password_hash, full_name, phone, department, designation, role, client_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING ${userReturning}`,
-        [companyId, input.employeeCode || null, input.username, input.email || null, passwordHash, input.fullName,
+        [companyId, input.employeeCode || null, normalizedUsername, input.email || null, passwordHash, input.fullName,
           input.phone || null, input.department || null, input.designation || null, input.role, input.clientId || null],
       );
       const user = await serializeUser(inserted.rows[0]);
