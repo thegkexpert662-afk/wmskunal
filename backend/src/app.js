@@ -21,6 +21,7 @@ const orderRoutes = require('./routes/order.routes');
 const pickingRoutes = require('./routes/picking.routes');
 const packingRoutes = require('./routes/packing.routes');
 const dispatchRoutes = require('./routes/dispatch.routes');
+const returnRoutes = require('./routes/return.routes');
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/picking', pickingRoutes);
 app.use('/api/packing', packingRoutes);
 app.use('/api/dispatch', dispatchRoutes);
+app.use('/api/returns', returnRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
