@@ -136,7 +136,7 @@ class _AdminInvoiceScreenState extends State<AdminInvoiceScreen> {
   Widget build(BuildContext context) {
     return ScreenFrame(
       title: 'Invoices',
-      subtitle: 'Permanent invoice history • GST billing • company logo • PDF storage.',
+      subtitle: 'Permanent invoice history • GST billing • company logo • PDF generated from database data.',
       actions: [
         OutlinedButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Refresh')),
         const SizedBox(width: 8),
@@ -343,6 +343,19 @@ class _AdminInvoiceScreenState extends State<AdminInvoiceScreen> {
             label: const Text('View / Generate PDF'),
           )),
         ]),
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController controller, String label) {
+    return TextField(
+      controller: controller,
+      keyboardType: label.contains('%')
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
       ),
     );
   }
