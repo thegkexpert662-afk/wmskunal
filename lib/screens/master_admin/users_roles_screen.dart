@@ -47,6 +47,18 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
   }
 
   Future<void> _openForm([Map<String,dynamic>? old]) async {
+    if (AuthService.instance.session?.role == 'master_admin') {
+      try {
+        companies = await service.companies();
+        if (companies.isEmpty) {
+          _msg('No companies found. Create a company first.');
+          return;
+        }
+      } catch (e) {
+        _msg(e.toString().replaceFirst('Exception: ', ''));
+        return;
+      }
+    }
     final name=TextEditingController(text:old?['full_name']?.toString()??'');
     final username=TextEditingController(text:old?['username']?.toString()??'');
     final email=TextEditingController(text:old?['email']?.toString()??'');
