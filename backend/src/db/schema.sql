@@ -266,6 +266,7 @@ CREATE TABLE IF NOT EXISTS putaway_tasks (
   UNIQUE (company_id, putaway_no)
 );
 
+ALTER TABLE putaway_tasks ALTER COLUMN grn_item_id DROP NOT NULL;
 ALTER TABLE putaway_tasks ADD COLUMN IF NOT EXISTS putaway_no VARCHAR(60);
 ALTER TABLE putaway_tasks ADD COLUMN IF NOT EXISTS production_receipt_item_id UUID REFERENCES production_receipt_items(id) ON DELETE CASCADE;
 ALTER TABLE putaway_tasks DROP CONSTRAINT IF EXISTS putaway_tasks_grn_item_id_fkey;
