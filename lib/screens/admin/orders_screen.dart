@@ -116,7 +116,7 @@ class _OrderDialogState extends State<_OrderDialog>{
   final Map<String,List<String>> transitions={'draft':['confirmed','cancelled'],'confirmed':['allocated','cancelled'],'allocated':['picking','cancelled'],'picking':['packed'],'packed':['dispatched'],'dispatched':['delivered']};
   Future<void> _set(String s)async{setState(()=>busy=true);try{await widget.api.updateStatus(widget.detail['id'].toString(),s);await widget.onChanged();if(mounted)Navigator.pop(context);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}finally{if(mounted)setState(()=>busy=false);}}
   @override Widget build(BuildContext context){
-    final status=widget.detail['status'].toString();final items=(widget.detail['items'] as List???[]).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    final status=widget.detail['status'].toString();final items=(widget.detail['items'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
     return AlertDialog(title:Text('Order ${widget.detail['order_no']}'),content:SizedBox(width:700,child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       Text('Client: ${widget.detail['client_name']}  •  Warehouse: ${widget.detail['warehouse_code']}'),const SizedBox(height:8),_chip(status),const Divider(),
       ...items.map((x)=>ListTile(title:Text('${x['sku']} - ${x['product_name']}'),subtitle:Text('Ordered: ${x['ordered_qty']} | Picked: ${x['picked_qty']} | Dispatched: ${x['dispatched_qty']}'))),
