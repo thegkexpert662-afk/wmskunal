@@ -529,25 +529,56 @@ CREATE TABLE IF NOT EXISTS returns (
   company_id UUID NOT NULL REFERENCES companies(id),
   client_id UUID REFERENCES clients(id),
   order_id UUID REFERENCES orders(id),
+  invoice_id UUID REFERENCES invoices(id),
+  warehouse_id UUID REFERENCES warehouses(id),
   return_no VARCHAR(60) NOT NULL,
   reason TEXT,
-  status VARCHAR(30) NOT NULL DEFAULT 'requested',
+  status VARCHAR(30) NOT NULL DEFAULT 'gate_in_pending'
+    CHECK (status IN ('requested','gate_in_pending','qc_pending','completed','rejected','cancelled')),
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  gate_in_at TIMESTAMPTZ,
+  gate_in_by UUID REFERENCES users(id),
   completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (company_id, return_no)
 );
+
+ALTER TABLE returns
+  ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id),
+  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
+  ADD COLUMN IF NOT EXISTS gate_in_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS gate_in_by UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE returns DROP CONSTRAINT IF EXISTS returns_status_check;
+ALTER TABLE returns ADD CONSTRAINT returns_status_check
+  CHECK (status IN ('requested','gate_in_pending','qc_pending','completed','rejected','cancelled'));
 
 CREATE TABLE IF NOT EXISTS return_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   return_id UUID NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
+  order_item_id UUID REFERENCES order_items(id),
   product_id UUID NOT NULL REFERENCES products(id),
   returned_qty NUMERIC(18,4) NOT NULL CHECK (returned_qty > 0),
-  qc_result VARCHAR(30),
-  accepted_qty NUMERIC(18,4) NOT NULL DEFAULT 0,
-  damaged_qty NUMERIC(18,4) NOT NULL DEFAULT 0,
-  rejected_qty NUMERIC(18,4) NOT NULL DEFAULT 0
+  qc_result VARCHAR(30) NOT NULL DEFAULT 'pending'
+    CHECK (qc_result IN ('pending','accepted','damaged','rejected','partial')),
+  accepted_qty NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (accepted_qty >= 0),
+  damaged_qty NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (damaged_qty >= 0),
+  rejected_qty NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (rejected_qty >= 0),
+  remarks TEXT,
+  CHECK (accepted_qty + damaged_qty + rejected_qty <= returned_qty)
 );
+
+ALTER TABLE return_items
+  ADD COLUMN IF NOT EXISTS order_item_id UUID REFERENCES order_items(id),
+  ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_returns_company_created ON returns(company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_returns_company_status ON returns(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_returns_warehouse ON returns(company_id, warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);
+CREATE INDEX IF NOT EXISTS idx_return_items_order_item ON return_items(order_item_id);
 
 CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
