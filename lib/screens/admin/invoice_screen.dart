@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../common_widgets.dart';
+import '../../services/invoice_service.dart';
 
 class AdminInvoiceScreen extends StatefulWidget {
   const AdminInvoiceScreen({super.key});
@@ -10,361 +12,337 @@ class AdminInvoiceScreen extends StatefulWidget {
 }
 
 class _AdminInvoiceScreenState extends State<AdminInvoiceScreen> {
+  final api = InvoiceService.instance;
+  final search = TextEditingController();
+  List<Map<String, dynamic>> invoices = [];
+  Map<String, dynamic>? selected;
+  bool loading = true;
+  String? error;
   String statusFilter = 'All';
-  String clientFilter = 'All';
-  String search = '';
+  @override
+  void initState() {
+    super.initState();
+    search.addListener(load);
+    load();
+  }
 
-  final List<Map<String, String>> invoices = const [
-    {
-      'invoice': 'INV-2026-081',
-      'client': 'ABC Industries',
-      'order': 'ORD-10284',
-      'warehouse': 'Main Warehouse',
-      'amount': '₹ 2,84,500',
-      'date': '16-09-2026',
-      'status': 'Paid',
-      'pdf': 'Ready',
-      'email': 'Sent',
-    },
-    {
-      'invoice': 'INV-2026-080',
-      'client': 'Metro Retail',
-      'order': 'ORD-10283',
-      'warehouse': 'Ankleshwar WH',
-      'amount': '₹ 1,72,800',
-      'date': '16-09-2026',
-      'status': 'Pending',
-      'pdf': 'Ready',
-      'email': 'Sent',
-    },
-    {
-      'invoice': 'INV-2026-079',
-      'client': 'Prime Traders',
-      'order': 'ORD-10282',
-      'warehouse': 'Vilayat Warehouse',
-      'amount': '₹ 98,400',
-      'date': '15-09-2026',
-      'status': 'Paid',
-      'pdf': 'Ready',
-      'email': 'Pending',
-    },
-    {
-      'invoice': 'INV-2026-078',
-      'client': 'Global Parts',
-      'order': 'ORD-10281',
-      'warehouse': 'Delhi Warehouse',
-      'amount': '₹ 76,250',
-      'date': '15-09-2026',
-      'status': 'Overdue',
-      'pdf': 'Ready',
-      'email': 'Sent',
-    },
-    {
-      'invoice': 'INV-2026-077',
-      'client': 'National Fabrics',
-      'order': 'ORD-10280',
-      'warehouse': 'Mumbai Warehouse',
-      'amount': '₹ 1,45,300',
-      'date': '14-09-2026',
-      'status': 'Paid',
-      'pdf': 'Ready',
-      'email': 'Sent',
-    },
-    {
-      'invoice': 'INV-2026-076',
-      'client': 'Shree Ram Suppliers',
-      'order': 'ORD-10279',
-      'warehouse': 'Main Warehouse',
-      'amount': '₹ 2,20,000',
-      'date': '13-09-2026',
-      'status': 'Pending',
-      'pdf': 'Ready',
-      'email': 'Pending',
-    },
-  ];
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
 
-  List<Map<String, String>> get filteredInvoices {
-    final query = search.toLowerCase().trim();
-    return invoices.where((invoice) {
-      final matchesSearch = query.isEmpty ||
-          invoice.values.any((value) => value.toLowerCase().contains(query));
-      final matchesStatus =
-          statusFilter == 'All' || invoice['status'] == statusFilter;
-      final matchesClient =
-          clientFilter == 'All' || invoice['client'] == clientFilter;
-      return matchesSearch && matchesStatus && matchesClient;
-    }).toList();
+  Future<void> load() async {
+    try {
+      if (mounted) setState(() { loading = true; error = null; });
+      final rows = await api.list(
+        search: search.text,
+        status: statusFilter,
+      );
+      if (!mounted) return;
+      setState(() {
+        invoices = rows;
+        if (selected != null) {
+          final found = rows.where((x) => x['id'] == selected!['id']).toList();
+          selected = found.isEmpty ? null : found.first;
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> openDetail(Map<String, dynamic> row) async {
+    try {
+      final d = await api.detail(row['id'].toString());
+      if (mounted) setState(() => selected = d);
+    } catch (e) {
+      _message(e.toString());
+    }
+  }
+
+  Future<void> openPdf(String id) async {
+    try {
+      _message('Generating PDF...');
+      final uri = await api.pdfDataUri(id);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        _message('PDF could not be opened.');
+      }
+    } catch (e) {
+      _message(e.toString());
+    }
+  }
+
+  Future<void> generateInvoice() async {
+    final order = TextEditingController();
+    final dispatch = TextEditingController();
+    final cgst = TextEditingController(text: '0');
+    final sgst = TextEditingController(text: '0');
+    final igst = TextEditingController(text: '0');
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Generate Invoice'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(order, 'Order ID *'),
+                const SizedBox(height: 10),
+                _field(dispatch, 'Dispatch ID (optional)'),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: _field(cgst, 'CGST %')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _field(sgst, 'SGST %')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _field(igst, 'IGST %')),
+                ]),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Create Invoice')),
+          ],
+        ),
+      );
+      if (ok != true || order.text.trim().isEmpty) return;
+      await api.create(
+        orderId: order.text.trim(),
+        dispatchId: dispatch.text.trim().isEmpty ? null : dispatch.text.trim(),
+        cgstRate: double.tryParse(cgst.text) ?? 0,
+        sgstRate: double.tryParse(sgst.text) ?? 0,
+        igstRate: double.tryParse(igst.text) ?? 0,
+      );
+      _message('Invoice created successfully.');
+      await load();
+    } catch (e) {
+      _message(e.toString());
+    } finally {
+      order.dispose();
+      dispatch.dispose();
+      cgst.dispose();
+      sgst.dispose();
+      igst.dispose();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final compact = width < 1150;
-
     return ScreenFrame(
       title: 'Invoices',
-      subtitle: 'Manage invoices, GST billing, PDFs and client notifications.',
+      subtitle: 'Permanent invoice history • GST billing • company logo • PDF storage.',
       actions: [
-        OutlinedButton.icon(
-          onPressed: () => _message('Invoice records exported successfully.'),
-          icon: const Icon(Icons.download_outlined, size: 18),
-          label: const Text('Export'),
-        ),
-        FilledButton.icon(
-          onPressed: () => _message('Generate Invoice selected.'),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Generate Invoice'),
-        ),
+        OutlinedButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Refresh')),
+        const SizedBox(width: 8),
+        FilledButton.icon(onPressed: generateInvoice, icon: const Icon(Icons.add), label: const Text('Generate Invoice')),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _summary(compact),
-          const SizedBox(height: 16),
-          if (compact) ...[
-            _invoiceTable(),
-            const SizedBox(height: 14),
-            _invoiceDetails(filteredInvoices.isNotEmpty ? filteredInvoices.first : invoices.first),
-          ] else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 8, child: _invoiceTable()),
-                const SizedBox(width: 14),
-                Expanded(flex: 3, child: _invoiceDetails(filteredInvoices.isNotEmpty ? filteredInvoices.first : invoices.first)),
-              ],
-            ),
-        ],
-      ),
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null
+              ? Center(child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(error!, style: const TextStyle(color: Colors.red)),
+                    OutlinedButton(onPressed: load, child: const Text('Retry')),
+                  ],
+                ))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _summary(),
+                    const SizedBox(height: 14),
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(flex: 7, child: _invoiceTable()),
+                      const SizedBox(width: 14),
+                      Expanded(flex: 3, child: _invoiceDetails()),
+                    ]),
+                  ],
+                ),
     );
   }
 
-  Widget _summary(bool compact) {
-    final cards = [
-      _stat('Total Invoices', '248', 'All time', Icons.receipt_long_outlined, const Color(0xFF1769E8), const Color(0xFFEAF2FF)),
-      _stat('This Month', '32', 'September 2026', Icons.calendar_month_outlined, const Color(0xFF16A05D), const Color(0xFFE7F9EF)),
-      _stat('Pending', '08', 'Awaiting payment', Icons.schedule_outlined, const Color(0xFFE6A014), const Color(0xFFFFF5E1)),
-      _stat('Overdue', '03', 'Payment overdue', Icons.warning_amber_rounded, const Color(0xFFE83C55), const Color(0xFFFFE9ED)),
-      _stat('Total Value', '₹ 48,75,650', 'Current billing value', Icons.currency_rupee_rounded, const Color(0xFF7447D8), const Color(0xFFF0EAFF)),
-    ];
-
-    if (compact) {
-      return GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 2.25,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: cards,
-      );
+  Widget _summary() {
+    double total = 0;
+    for (final x in invoices) {
+      total += double.tryParse((x['total_amount'] ?? 0).toString()) ?? 0;
     }
-
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 12),
-        ],
+        _stat('Invoices', invoices.length.toString(), Icons.receipt_long_outlined),
+        _stat('Issued', invoices.where((x) => x['status'] == 'issued').length.toString(), Icons.check_circle_outline),
+        _stat('Cancelled', invoices.where((x) => x['status'] == 'cancelled').length.toString(), Icons.cancel_outlined),
+        _stat('Value', '₹ ' + total.toStringAsFixed(2), Icons.currency_rupee_outlined),
       ],
     );
   }
 
-  Widget _stat(
-    String title,
-    String value,
-    String subtitle,
-    IconData icon,
-    Color color,
-    Color background,
-  ) {
+  Widget _stat(String title, String value, IconData icon) {
     return Container(
+      width: 205,
       padding: const EdgeInsets.all(14),
       decoration: _box(),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 27),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title(11)),
-                const SizedBox(height: 3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(value, style: _value(22)),
-                ),
-                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF738298), fontSize: 10)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Icon(icon, color: const Color(0xFF1769D5), size: 27),
+        const SizedBox(width: 11),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+            const SizedBox(height: 3),
+            Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF162B46))),
+          ],
+        )),
+      ]),
     );
   }
 
   Widget _invoiceTable() {
-    final rows = filteredInvoices;
     return Container(
       decoration: _box(),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: 300,
-                  height: 40,
-                  child: TextField(
-                    onChanged: (value) => setState(() => search = value),
-                    decoration: InputDecoration(
-                      hintText: 'Search invoice, client or order...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(11),
+          child: Wrap(spacing: 8, runSpacing: 8, children: [
+            SizedBox(
+              width: 310,
+              height: 40,
+              child: TextField(
+                controller: search,
+                decoration: const InputDecoration(
+                  hintText: 'Search invoice, client or order...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
                 ),
-                _drop(statusFilter, const ['All', 'Paid', 'Pending', 'Overdue'], (v) => setState(() => statusFilter = v), 'Status'),
-                _drop(clientFilter, const ['All', 'ABC Industries', 'Metro Retail', 'Prime Traders', 'Global Parts'], (v) => setState(() => clientFilter = v), 'Client'),
-                OutlinedButton.icon(
-                  onPressed: () => _message('Invoice filters applied.'),
-                  icon: const Icon(Icons.filter_alt_outlined, size: 17),
-                  label: const Text('Filter'),
+              ),
+            ),
+            SizedBox(
+              width: 150,
+              height: 40,
+              child: DropdownButtonFormField<String>(
+                value: statusFilter,
+                decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+                items: const ['All', 'issued', 'cancelled']
+                    .map((x) => DropdownMenuItem(value: x, child: Text(x))).toList(),
+                onChanged: (v) { if (v != null) { setState(() => statusFilter = v); load(); } },
+              ),
+            ),
+          ]),
+        ),
+        const Divider(height: 1),
+        invoices.isEmpty
+            ? const Padding(padding: EdgeInsets.all(35), child: Text('No invoice records found.'))
+            : HorizontalTableScroller(
+                child: DataTable(
+                  headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
+                  columns: const [
+                    DataColumn(label: Text('Invoice No')),
+                    DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Client')),
+                    DataColumn(label: Text('Order')),
+                    DataColumn(label: Text('Dispatch')),
+                    DataColumn(label: Text('Amount')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('PDF')),
+                    DataColumn(label: Text('Action')),
+                  ],
+                  rows: invoices.map((x) => DataRow(cells: [
+                    DataCell(Text((x['invoice_no'] ?? '-').toString(), style: const TextStyle(fontWeight: FontWeight.w800))),
+                    DataCell(Text((x['invoice_date'] ?? '-').toString())),
+                    DataCell(Text((x['client_name'] ?? '-').toString())),
+                    DataCell(Text((x['order_no'] ?? '-').toString())),
+                    DataCell(Text((x['dispatch_no'] ?? '-').toString())),
+                    DataCell(Text('₹ ' + (x['total_amount'] ?? '0').toString())),
+                    DataCell(_badge((x['status'] ?? '-').toString())),
+                    DataCell(_badge(x['pdf_generated_at'] == null ? 'Not generated' : 'Ready')),
+                    DataCell(Row(children: [
+                      IconButton(tooltip: 'View', onPressed: () => openDetail(x), icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1769E8))),
+                      IconButton(tooltip: 'PDF', onPressed: () => openPdf(x['id'].toString()), icon: const Icon(Icons.picture_as_pdf_outlined, size: 18, color: Color(0xFFE83C55))),
+                    ])),
+                  ])).toList(),
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          HorizontalTableScroller(
-            child: DataTable(
-              headingTextStyle: const TextStyle(
-                color: Color(0xFF43546A),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
               ),
-              dataTextStyle: const TextStyle(
-                color: Color(0xFF26384F),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              headingRowHeight: 48,
-              dataRowMinHeight: 52,
-              dataRowMaxHeight: 58,
-              columnSpacing: 26,
-              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
-              columns: const [
-                DataColumn(columnWidth: const FixedColumnWidth(50), label: Text('#')),
-                DataColumn(columnWidth: const FixedColumnWidth(120), label: Text('Invoice No')),
-                DataColumn(columnWidth: const FixedColumnWidth(160), label: Text('Client')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Order ID')),
-                DataColumn(columnWidth: const FixedColumnWidth(140), label: Text('Warehouse')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Amount')),
-                DataColumn(columnWidth: const FixedColumnWidth(95), label: Text('Date')),
-                DataColumn(columnWidth: const FixedColumnWidth(105), label: Text('Status')),
-                DataColumn(columnWidth: const FixedColumnWidth(70), label: Text('PDF')),
-                DataColumn(columnWidth: const FixedColumnWidth(75), label: Text('Email')),
-                DataColumn(columnWidth: const FixedColumnWidth(90), label: Text('Actions')),
-              ],
-              rows: List.generate(rows.length, (index) {
-                final invoice = rows[index];
-                return DataRow(cells: [
-                  DataCell(Text('${index + 1}')),
-                  DataCell(Text(invoice['invoice']!, style: const TextStyle(fontWeight: FontWeight.w700))),
-                  DataCell(Text(invoice['client']!)),
-                  DataCell(Text(invoice['order']!)),
-                  DataCell(Text(invoice['warehouse']!)),
-                  DataCell(Text(invoice['amount']!)),
-                  DataCell(Text(invoice['date']!)),
-                  DataCell(_badge(invoice['status']!)),
-                  DataCell(_badge(invoice['pdf']!)),
-                  DataCell(_badge(invoice['email']!)),
-                  DataCell(Row(children: [
-                    IconButton(onPressed: () => _message('Viewing ${invoice['invoice']}'), tooltip: 'View', icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1769E8))),
-                    IconButton(onPressed: () => _message('PDF download started.'), tooltip: 'Download PDF', icon: const Icon(Icons.download_outlined, size: 18, color: Color(0xFF1769E8))),
-                  ])),
-                ]);
-              }),
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Text('Showing 1 to ${rows.length} of 248 entries', style: const TextStyle(color: Color(0xFF718096), fontSize: 10)),
-                const Spacer(),
-                _page('Prev'), _page('1', active: true), _page('2'), _page('3'), _page('4'), _page('5'), _page('…'), _page('25'), _page('Next'),
-              ],
-            ),
-          ),
-        ],
-      ),
+      ]),
     );
   }
 
-  Widget _invoiceDetails(Map<String, String> invoice) {
-    return Container(
-      decoration: _box(),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _invoiceDetails() {
+    if (selected == null) {
+      return Container(
+        padding: const EdgeInsets.all(25),
+        decoration: _box(),
+        child: const Column(
           children: [
-            Row(children: [
-              Expanded(child: Text('Invoice Details', style: _value(16))),
-              const Icon(Icons.close, size: 18, color: Color(0xFF8190A2)),
-            ]),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(10)),
-              child: Row(children: [
-                const Icon(Icons.receipt_long_outlined, color: Color(0xFF1769E8), size: 30),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(invoice['invoice']!, style: _value(15)),
-                  const SizedBox(height: 3),
-                  Text(invoice['client']!, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                ])),
-                _badge(invoice['status']!),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            _detail('Order ID', invoice['order']!, Icons.shopping_cart_outlined),
-            _detail('Warehouse', invoice['warehouse']!, Icons.warehouse_outlined),
-            _detail('Invoice Date', invoice['date']!, Icons.calendar_today_outlined),
-            _detail('Amount', invoice['amount']!, Icons.currency_rupee_rounded),
-            _detail('PDF Status', invoice['pdf']!, Icons.picture_as_pdf_outlined),
-            _detail('Email Status', invoice['email']!, Icons.email_outlined),
-            const Divider(height: 28),
-            Text('Billing Summary', style: _value(14)),
-            const SizedBox(height: 10),
-            _amountRow('Taxable Amount', '₹ 2,50,000'),
-            _amountRow('GST (18%)', '₹ 45,000'),
-            _amountRow('Grand Total', invoice['amount']!, bold: true),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: () => _message('PDF download started.'), icon: const Icon(Icons.download_outlined, size: 17), label: const Text('Download PDF'))),
-              const SizedBox(width: 8),
-              Expanded(child: FilledButton.icon(onPressed: () => _message('Invoice email sent.'), icon: const Icon(Icons.send_outlined, size: 17), label: const Text('Send'))),
-            ]),
+            Icon(Icons.receipt_long_outlined, size: 46, color: Color(0xFF9AA9BA)),
+            SizedBox(height: 10),
+            Text('Select an invoice to view complete details.'),
           ],
         ),
+      );
+    }
+
+    final inv = selected!['invoice'] is Map
+        ? Map<String, dynamic>.from(selected!['invoice'] as Map)
+        : Map<String, dynamic>.from(selected!);
+    final items = selected!['items'] is List
+        ? (selected!['items'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
+        : <Map<String, dynamic>>[];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            if ((inv['company_logo_url_snapshot'] ?? '').toString().isNotEmpty)
+              Image.network(inv['company_logo_url_snapshot'].toString(), width: 54, height: 54, fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 40))
+            else
+              const Icon(Icons.business, size: 40, color: Color(0xFF1769D5)),
+            const SizedBox(width: 10),
+            Expanded(child: Text((inv['company_name_snapshot'] ?? '-').toString(),
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15))),
+          ]),
+          const Divider(height: 25),
+          _detail('Invoice No', (inv['invoice_no'] ?? '-').toString()),
+          _detail('Invoice Date', (inv['invoice_date'] ?? '-').toString()),
+          _detail('Client', (inv['client_name_snapshot'] ?? '-').toString()),
+          _detail('Order', (inv['order_no'] ?? '-').toString()),
+          _detail('Dispatch', (inv['dispatch_no'] ?? '-').toString()),
+          _detail('Status', (inv['status'] ?? '-').toString()),
+          const Divider(height: 25),
+          const Text('Invoice Items', style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          ...items.map((item) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(children: [
+              Expanded(child: Text((item['product_name'] ?? item['description'] ?? '-').toString(), style: const TextStyle(fontSize: 11))),
+              Text((item['quantity'] ?? 0).toString() + ' × ₹' + (item['rate'] ?? 0).toString(),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+            ]),
+          )),
+          const Divider(height: 20),
+          _detail('Taxable', '₹ ' + (inv['taxable_amount'] ?? 0).toString()),
+          _detail('Discount', '₹ ' + (inv['discount_amount'] ?? 0).toString()),
+          _detail('CGST', '₹ ' + (inv['cgst_amount'] ?? 0).toString()),
+          _detail('SGST', '₹ ' + (inv['sgst_amount'] ?? 0).toString()),
+          _detail('IGST', '₹ ' + (inv['igst_amount'] ?? 0).toString()),
+          _detail('Grand Total', '₹ ' + (inv['total_amount'] ?? 0).toString()),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: FilledButton.icon(
+            onPressed: () => openPdf(inv['id'].toString()),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('View / Generate PDF'),
+          )),
+        ]),
       ),
     );
   }
