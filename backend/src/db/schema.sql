@@ -291,10 +291,12 @@ CREATE TABLE IF NOT EXISTS inventory (
   location_id UUID REFERENCES warehouse_locations(id),
   quantity NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (quantity >= 0),
   reserved_quantity NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (reserved_quantity >= 0),
+  damaged_quantity NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (damaged_quantity >= 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (company_id, product_id, warehouse_id, location_id)
 );
 
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS damaged_quantity NUMERIC(18,4) NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS inventory_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
@@ -572,7 +574,12 @@ CREATE TABLE IF NOT EXISTS return_items (
 
 ALTER TABLE return_items
   ADD COLUMN IF NOT EXISTS order_item_id UUID REFERENCES order_items(id),
-  ADD COLUMN IF NOT EXISTS remarks TEXT;
+  ADD COLUMN IF NOT EXISTS remarks TEXT,
+  ADD COLUMN IF NOT EXISTS qc_by UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS qc_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_returns_company_created ON returns(company_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_returns_company_status ON returns(company_id, status);
