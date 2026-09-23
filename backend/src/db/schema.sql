@@ -529,7 +529,7 @@ CREATE TABLE IF NOT EXISTS returns (
   company_id UUID NOT NULL REFERENCES companies(id),
   client_id UUID REFERENCES clients(id),
   order_id UUID REFERENCES orders(id),
-  invoice_id UUID REFERENCES invoices(id),
+  invoice_id UUID,
   warehouse_id UUID REFERENCES warehouses(id),
   return_no VARCHAR(60) NOT NULL,
   reason TEXT,
@@ -545,7 +545,7 @@ CREATE TABLE IF NOT EXISTS returns (
 );
 
 ALTER TABLE returns
-  ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES invoices(id),
+  ADD COLUMN IF NOT EXISTS invoice_id UUID,
   ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
   ADD COLUMN IF NOT EXISTS gate_in_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS gate_in_by UUID REFERENCES users(id),
@@ -598,6 +598,10 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (company_id, invoice_no)
 );
+
+ALTER TABLE returns DROP CONSTRAINT IF EXISTS returns_invoice_id_fkey;
+ALTER TABLE returns ADD CONSTRAINT returns_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES invoices(id);
+
 
 CREATE TABLE IF NOT EXISTS invoice_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
