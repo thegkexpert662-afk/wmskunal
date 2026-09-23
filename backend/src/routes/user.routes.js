@@ -21,11 +21,9 @@ const STAFF_ROLES = [
 
 const ALL_ROLES = ['admin', 'client', ...STAFF_ROLES];
 
-const userSelect = [
-  'u.id', 'u.user_code', 'u.employee_code', 'u.company_id', 'u.client_id',
-  'u.username', 'u.email', 'u.full_name', 'u.phone', 'u.department',
-  'u.designation', 'u.role', 'u.is_active', 'u.created_at', 'u.updated_at',
-].join(', ');
+const userColumns = ['id','user_code','employee_code','company_id','client_id','username','email','full_name','phone','department','designation','role','is_active','created_at','updated_at'];
+const userSelect = userColumns.map((c) => 'u.' + c).join(', ');
+const userReturning = userColumns.join(', ');
 
 const createSchema = z.object({
   username: z.string().trim().min(3).max(100).regex(/^[A-Za-z0-9._-]+$/),
@@ -278,7 +276,7 @@ router.post(
         `INSERT INTO users
           (company_id, employee_code, username, email, password_hash, full_name, phone, department, designation, role, client_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         RETURNING ${userSelect}`,
+         RETURNING ${userReturning}`,
         [companyId, input.employeeCode || null, input.username, input.email || null, passwordHash, input.fullName,
           input.phone || null, input.department || null, input.designation || null, input.role, input.clientId || null],
       );
