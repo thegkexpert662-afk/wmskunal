@@ -322,6 +322,25 @@ CREATE TABLE IF NOT EXISTS orders (
   UNIQUE (company_id, order_no)
 );
 
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id);
+
+CREATE INDEX IF NOT EXISTS idx_orders_company_warehouse_created
+  ON orders(company_id, warehouse_id, created_at DESC);
+
+ALTER TABLE orders
+  DROP CONSTRAINT IF EXISTS orders_status_check;
+
+ALTER TABLE orders
+  ADD CONSTRAINT orders_status_check
+  CHECK (status IN ('draft','confirmed','allocated','picking','packed','dispatched','delivered','cancelled'));
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT 'client', p.id
+FROM permissions p
+WHERE p.permission_key IN ('order.read','order.create')
+ON CONFLICT (role, permission_id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
