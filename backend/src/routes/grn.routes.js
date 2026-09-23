@@ -51,8 +51,9 @@ router.get('/:id', requirePermission('grn.read'), async (req, res, next) => {
       `SELECT g.*, w.name AS warehouse
        FROM grns g
        LEFT JOIN warehouses w ON w.id = g.warehouse_id
-       WHERE g.id = $1 AND g.company_id = $2`,
-      [req.params.id, req.tenant.companyId],
+       WHERE g.id = $1 AND g.company_id = $2
+         AND ($3::uuid[] IS NULL OR g.warehouse_id = ANY($3::uuid[]))`,
+      [req.params.id, req.tenant.companyId, assigned.length ? assigned : null],
     );
 
     if (result.rowCount === 0) {
