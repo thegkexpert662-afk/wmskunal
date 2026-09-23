@@ -215,7 +215,7 @@ router.post('/', requirePermission('invoice.create'), async (req, res, next) => 
          company_name_snapshot,company_logo_url_snapshot,company_address_snapshot,company_gstin_snapshot,company_email_snapshot,company_mobile_snapshot,
          client_name_snapshot,client_address_snapshot,client_gstin_snapshot,client_email_snapshot,client_mobile_snapshot,
          created_by,updated_at
-       ) VALUES($1,$2,$3,$4,$5,$6,'issued',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
+       ) VALUES($1,$2,$3,$4,$5,$6,'issued',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
        RETURNING *`,
       [
         req.tenant.companyId,order.client_id,order.id,input.dispatchId || null,invoiceNo,invoiceDate,
