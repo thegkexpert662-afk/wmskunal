@@ -201,6 +201,36 @@ router.get('/source/orders', requirePermission('return.create'), async (req, res
   }
 });
 
+router.get('/source/invoices', requirePermission('return.create'), async (req, res, next) => {
+  try {
+    const ids = await assigned(req);
+    const params = [req.tenant.companyId];
+    let scope = '';
+    if (ids.length) {
+      params.push(ids);
+      scope = ` AND o.warehouse_id = ANY(${params.length}::uuid[])`;
+    }
+    const result = await pool.query(
+      `SELECT i.id invoice_id,i.invoice_no,i.invoice_date,i.order_id,
+              o.order_no,o.status order_status,o.warehouse_id,
+              c.name client_name,w.code warehouse_code,w.name warehouse_name,
+              i.total_amount
+       FROM invoices i
+       JOIN orders o ON o.id=i.order_id
+       JOIN clients c ON c.id=i.client_id
+       JOIN warehouses w ON w.id=o.warehouse_id
+       WHERE i.company_id=$1
+         AND o.status IN ('dispatched','delivered')${scope}
+       ORDER BY i.invoice_date DESC,i.created_at DESC
+       LIMIT 200`,
+      params,
+    );
+    res.json({ invoices: result.rows });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.post('/', requirePermission('return.create'), async (req, res, next) => {
   const db = await pool.connect();
   try {
