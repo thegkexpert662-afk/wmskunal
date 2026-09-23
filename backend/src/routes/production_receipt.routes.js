@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireApprovedDevice } = require('../middleware/device');
 const { requireCompanyModule } = require('../middleware/company');
-const { requireRole } = require('../middleware/role');
+const { getAssignedWarehouseIds } = require('../middleware/warehouse_access');
 const { requirePermission } = require('../middleware/permission');
 const { requireTenantContext } = require('../middleware/tenant');
 
@@ -24,21 +24,24 @@ router.use(
   requireAuth,
   requireApprovedDevice,
   requireTenantContext,
-  requireRole('admin'),
   requireCompanyModule('inbound'),
 );
 
 router.get('/', requirePermission('inbound.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    const params = [req.tenant.companyId];
+    let warehouseFilter = '';
+    if (ids.length) { params.push(ids); warehouseFilter = ' AND r.warehouse_id = ANY($2::uuid[])'; }
     const result = await pool.query(
       `SELECT r.id, r.receipt_no, r.production_reference, r.status,
               r.received_at, r.created_at, w.name AS warehouse
        FROM production_receipts r
        LEFT JOIN warehouses w ON w.id = r.warehouse_id
-       WHERE r.company_id = $1
+       WHERE r.company_id = $1 ${warehouseFilter}
        ORDER BY r.created_at DESC
        LIMIT 100`,
-      [req.tenant.companyId],
+      params,
     );
     return res.json({ data: result.rows });
   } catch (error) {
@@ -48,6 +51,7 @@ router.get('/', requirePermission('inbound.read'), async (req, res, next) => {
 
 router.get('/:id', requirePermission('inbound.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const receipt = await pool.query(
       `SELECT r.*, w.name AS warehouse
        FROM production_receipts r
@@ -59,6 +63,10 @@ router.get('/:id', requirePermission('inbound.read'), async (req, res, next) => 
       return res.status(404).json({
         error: { code: 'PRODUCTION_RECEIPT_NOT_FOUND', message: 'Production receipt not found.' },
       });
+    }
+
+    if (ids.length && !ids.includes(receipt.rows[0].warehouse_id)) {
+      return res.status(403).json({ error: { code: 'WAREHOUSE_ACCESS_DENIED', message: 'You are not assigned to this warehouse.' } });
     }
 
     const items = await pool.query(
@@ -82,6 +90,10 @@ router.post('/', requirePermission('inbound.create'), async (req, res, next) => 
   const client = await pool.connect();
   try {
     const input = receiptSchema.parse(req.body);
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    if (ids.length && !ids.includes(input.warehouseId)) {
+      return res.status(403).json({ error: { code: 'WAREHOUSE_ACCESS_DENIED', message: 'You are not assigned to this warehouse.' } });
+    }
     await client.query('BEGIN');
 
     const warehouse = await client.query(
