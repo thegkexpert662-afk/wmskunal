@@ -248,14 +248,39 @@ CREATE INDEX IF NOT EXISTS idx_qc_production_item
 CREATE TABLE IF NOT EXISTS putaway_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
-  grn_item_id UUID NOT NULL REFERENCES grn_items(id),
+  putaway_no VARCHAR(60),
+  grn_item_id UUID REFERENCES grn_items(id) ON DELETE CASCADE,
+  production_receipt_item_id UUID REFERENCES production_receipt_items(id) ON DELETE CASCADE,
   location_id UUID REFERENCES warehouse_locations(id),
-  quantity NUMERIC(18,4) NOT NULL CHECK (quantity >= 0),
-  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  quantity NUMERIC(18,4) NOT NULL CHECK (quantity > 0),
+  status VARCHAR(30) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','in_progress','completed','cancelled')),
   processed_by UUID REFERENCES users(id),
   processed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (grn_item_id IS NOT NULL AND production_receipt_item_id IS NULL)
+    OR
+    (grn_item_id IS NULL AND production_receipt_item_id IS NOT NULL)
+  ),
+  UNIQUE (company_id, putaway_no)
 );
+
+ALTER TABLE putaway_tasks ADD COLUMN IF NOT EXISTS putaway_no VARCHAR(60);
+ALTER TABLE putaway_tasks ADD COLUMN IF NOT EXISTS production_receipt_item_id UUID REFERENCES production_receipt_items(id) ON DELETE CASCADE;
+ALTER TABLE putaway_tasks DROP CONSTRAINT IF EXISTS putaway_tasks_grn_item_id_fkey;
+ALTER TABLE putaway_tasks ADD CONSTRAINT putaway_tasks_grn_item_id_fkey FOREIGN KEY (grn_item_id) REFERENCES grn_items(id) ON DELETE CASCADE;
+ALTER TABLE putaway_tasks DROP CONSTRAINT IF EXISTS putaway_tasks_source_check;
+ALTER TABLE putaway_tasks ADD CONSTRAINT putaway_tasks_source_check CHECK (
+  (grn_item_id IS NOT NULL AND production_receipt_item_id IS NULL)
+  OR
+  (grn_item_id IS NULL AND production_receipt_item_id IS NOT NULL)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_putaway_no ON putaway_tasks(company_id, putaway_no) WHERE putaway_no IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_putaway_company_created ON putaway_tasks(company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_putaway_grn_item ON putaway_tasks(grn_item_id);
+CREATE INDEX IF NOT EXISTS idx_putaway_production_item ON putaway_tasks(production_receipt_item_id);
 
 CREATE TABLE IF NOT EXISTS inventory (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
