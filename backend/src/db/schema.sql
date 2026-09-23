@@ -715,10 +715,18 @@ WHERE p.permission_key = CASE r.role
  WHEN 'gate_operator' THEN 'inbound.create'
  WHEN 'inventory_user' THEN 'inventory.manage'
  WHEN 'dispatch_user' THEN 'dispatch.manage'
- WHEN 'warehouse_manager' THEN 'stock_transfer.manage'
- WHEN 'warehouse_supervisor' THEN 'stock_transfer.pick'
- WHEN 'inventory_user' THEN 'stock_transfer.receive'
 END
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager','stock_transfer.manage'),
+ ('warehouse_manager','stock_transfer.approve'),
+ ('warehouse_supervisor','stock_transfer.pick'),
+ ('inventory_user','stock_transfer.receive')
+) AS r(role, permission_key)
+JOIN permissions p ON p.permission_key=r.permission_key
 ON CONFLICT (role, permission_id) DO NOTHING;
 
 INSERT INTO role_permissions (role, permission_id)
