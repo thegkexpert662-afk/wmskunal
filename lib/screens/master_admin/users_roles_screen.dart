@@ -132,7 +132,53 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
             ),
           _field(name,'Full Name'),_field(username,'Username',enabled:old==null),_field(email,'Email'),_field(phone,'Phone'),
           _field(emp,'Employee Code'),_field(dept,'Department'),_field(designation,'Designation'),
-          DropdownButtonFormField<String>(value:selected,decoration:const InputDecoration(labelText:'Role'),items:roles.map((r)=>DropdownMenuItem(value:r['key'].toString(),child:Text(r['label'].toString()))).toList(),onChanged:(v)=>setD(()=>selected=v??selected)),
+          InkWell(
+            onTap: roles.isEmpty
+                ? null
+                : () async {
+                    final selectedRole = await showDialog<String>(
+                      context: ctx,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Select Role'),
+                        content: SizedBox(
+                          width: 450,
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: roles.map((r) {
+                              final key = r['key'].toString();
+                              return ListTile(
+                                title: Text(r['label']?.toString() ?? key),
+                                subtitle: Text(key),
+                                trailing: key == selected
+                                    ? const Icon(Icons.check_circle)
+                                    : null,
+                                onTap: () => Navigator.pop(dialogContext, key),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                    if (selectedRole != null) {
+                      setD(() => selected = selectedRole);
+                    }
+                  },
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Role',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.arrow_drop_down),
+              ),
+              child: Text(
+                roles
+                    .firstWhere(
+                      (r) => r['key'].toString() == selected,
+                      orElse: () => <String, dynamic>{'label': selected},
+                    )['label']
+                    ?.toString() ?? selected,
+              ),
+            ),
+          ),
           if(old==null)_field(password,'Password (min 12 characters)',obscure:true),
           if(['warehouse_manager','warehouse_supervisor','warehouse_operator','warehouse_qc','gate_operator','inventory_user','dispatch_user'].contains(selected))...[
             const SizedBox(height:8),const Align(alignment:Alignment.centerLeft,child:Text('Warehouse Assignment',style:TextStyle(fontWeight:FontWeight.w700))),
