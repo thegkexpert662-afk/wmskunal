@@ -369,6 +369,20 @@ CREATE TABLE IF NOT EXISTS picking_items (
   quantity NUMERIC(18,4) NOT NULL CHECK (quantity > 0)
 );
 
+ALTER TABLE picking_tasks DROP CONSTRAINT IF EXISTS picking_tasks_status_check;
+ALTER TABLE picking_tasks ADD CONSTRAINT picking_tasks_status_check CHECK (status IN ('pending','in_progress','completed','cancelled'));
+CREATE UNIQUE INDEX IF NOT EXISTS uq_picking_tasks_active_order ON picking_tasks(order_id) WHERE status IN ('pending','in_progress');
+CREATE INDEX IF NOT EXISTS idx_picking_tasks_company_status ON picking_tasks(company_id,status,created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_picking_tasks_order ON picking_tasks(order_id);
+CREATE INDEX IF NOT EXISTS idx_picking_items_task ON picking_items(picking_task_id);
+CREATE INDEX IF NOT EXISTS idx_picking_items_order_item ON picking_items(order_item_id);
+CREATE INDEX IF NOT EXISTS idx_picking_items_location ON picking_items(location_id);
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role,p.id FROM (VALUES ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator')) AS r(role)
+CROSS JOIN permissions p WHERE p.permission_key='picking.manage'
+ON CONFLICT (role,permission_id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS packing (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
