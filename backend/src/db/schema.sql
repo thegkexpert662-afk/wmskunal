@@ -124,8 +124,14 @@ CREATE TABLE IF NOT EXISTS warehouse_locations (
   zone VARCHAR(80),
   bin VARCHAR(80),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (warehouse_id, code)
 );
+
+ALTER TABLE warehouse_locations
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS grns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -332,6 +338,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company_id);
 CREATE INDEX IF NOT EXISTS idx_products_company_sku ON products(company_id, sku);
+CREATE INDEX IF NOT EXISTS idx_warehouses_company ON warehouses(company_id);
+CREATE INDEX IF NOT EXISTS idx_warehouses_company_active ON warehouses(company_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_warehouse_locations_warehouse ON warehouse_locations(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_warehouse_locations_warehouse_active ON warehouse_locations(warehouse_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_inventory_company_product ON inventory(company_id, product_id);
 CREATE INDEX IF NOT EXISTS idx_grns_company_created ON grns(company_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_company_created ON orders(company_id, created_at DESC);
