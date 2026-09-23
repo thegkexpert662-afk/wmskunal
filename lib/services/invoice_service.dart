@@ -93,5 +93,12 @@ class InvoiceService {
     return Map<String, dynamic>.from(b['invoice'] as Map);
   }
 
-  Uri pdfUri(String id) => Uri.parse('$base/invoices/$id/pdf');
+  Future<Uri> pdfDataUri(String id) async {
+    final r = await http.get(Uri.parse('$base/invoices/$id/pdf'), headers: _headers());
+    if (r.statusCode != 200) {
+      final b = jsonDecode(r.body);
+      throw Exception(_message(b));
+    }
+    return Uri.parse('data:application/pdf;base64,${base64Encode(r.bodyBytes)}');
+  }
 }
