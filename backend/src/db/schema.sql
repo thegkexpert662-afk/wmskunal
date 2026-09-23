@@ -148,6 +148,35 @@ CREATE TABLE IF NOT EXISTS grns (
   UNIQUE (company_id, grn_no)
 );
 
+CREATE TABLE IF NOT EXISTS production_receipts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id),
+  receipt_no VARCHAR(60) NOT NULL,
+  production_reference VARCHAR(100),
+  warehouse_id UUID REFERENCES warehouses(id),
+  status VARCHAR(30) NOT NULL DEFAULT 'received',
+  received_at TIMESTAMPTZ,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (company_id, receipt_no)
+);
+
+CREATE TABLE IF NOT EXISTS production_receipt_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  receipt_id UUID NOT NULL REFERENCES production_receipts(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id),
+  received_qty NUMERIC(18,4) NOT NULL CHECK (received_qty > 0),
+  qc_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_receipts_company_created
+  ON production_receipts(company_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_production_receipt_items_receipt
+  ON production_receipt_items(receipt_id);
+
 CREATE TABLE IF NOT EXISTS grn_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   grn_id UUID NOT NULL REFERENCES grns(id) ON DELETE CASCADE,
@@ -471,6 +500,8 @@ INSERT INTO permissions (permission_key, description) VALUES
   ('system.manage', 'Manage technical system settings'),
   ('security.audit.read', 'View security and audit records'),
 
+  ('inbound.read', 'View inbound receipts'),
+  ('inbound.create', 'Create inbound receipts'),
   ('grn.read', 'View GRNs'),
   ('grn.create', 'Create GRNs'),
   ('qc.read', 'View quality control records'),
