@@ -17,6 +17,17 @@ const processSchema=z.object({locationId:z.string().uuid()});
 
 function scope(assigned, params){ return assigned.length ? ' AND w.id = ANY($'+(params.length+1)+'::uuid[])' : ''; }
 
+router.get('/locations',requireAuth,requireApprovedDevice,requireTenantContext,requirePermission('putaway.read'),async(req,res,next)=>{
+  try{
+    const warehouseId=req.query.warehouseId?.toString();
+    if(!warehouseId)return res.status(400).json({error:{code:'WAREHOUSE_REQUIRED',message:'Warehouse is required.'}});
+    const assigned=await getAssignedWarehouseIds(req.user.sub,req.tenant.companyId);
+    if(assigned.length&&!assigned.includes(warehouseId))return res.status(403).json({error:{code:'WAREHOUSE_ACCESS_DENIED',message:'You are not assigned to this warehouse.'}});
+    const r=await pool.query('SELECT id,warehouse_id,code,zone,bin FROM warehouse_locations WHERE warehouse_id=$1 AND is_active=TRUE ORDER BY zone NULLS LAST,bin NULLS LAST,code',[warehouseId]);
+    return res.json({locations:r.rows});
+  }catch(e){return next(e);}
+});
+
 router.get('/pending',requireAuth,requireApprovedDevice,requireTenantContext,requirePermission('putaway.read'),async(req,res,next)=>{
   try{
     const assigned=await getAssignedWarehouseIds(req.user.sub,req.tenant.companyId);
