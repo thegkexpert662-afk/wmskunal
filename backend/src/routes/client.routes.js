@@ -19,22 +19,57 @@ const clientSchema = z.object({
 
 const updateSchema = clientSchema.partial();
 
-const adminRouter = router;
-adminRouter.use(
+const clientFields = `id, company_id, client_code, name, email, mobile, gstin, address,
+                        is_active, created_at, updated_at`;
+
+// Client portal: a client can only read its own client record.
+router.get(
+  '/me',
+  requireAuth,
+  requireApprovedDevice,
+  requireTenantContext,
+  requireRole('client'),
+  requirePermission('profile.read'),
+  async (req, res, next) => {
+    try {
+      const result = await pool.query(
+        `SELECT ${clientFields}
+         FROM clients
+         WHERE id = $1
+           AND company_id = $2
+           AND is_active = TRUE
+         LIMIT 1`,
+        [req.tenant.clientId, req.tenant.companyId],
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          error: { code: 'CLIENT_NOT_FOUND', message: 'Client profile not found.' },
+        });
+      }
+
+      return res.json({ client: result.rows[0] });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
+// Admin client management: strictly limited to the current tenant company.
+router.use(
   requireAuth,
   requireApprovedDevice,
   requireTenantContext,
   requireRole('admin'),
 );
 
-adminRouter.get(
+router.get(
   '/',
   requirePermission('client.read'),
   async (req, res, next) => {
     try {
       const result = await pool.query(
-        `SELECT id, client_code, name, email, mobile, gstin, address,
-                is_active, created_at, updated_at
+        `SELECT ${clientFields}
          FROM clients
          WHERE company_id = $1
          ORDER BY name ASC`,
@@ -48,7 +83,7 @@ adminRouter.get(
   },
 );
 
-adminRouter.post(
+router.post(
   '/',
   requirePermission('client.manage'),
   async (req, res, next) => {
@@ -59,8 +94,7 @@ adminRouter.post(
         `INSERT INTO clients
           (company_id, client_code, name, email, mobile, gstin, address)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, company_id, client_code, name, email, mobile, gstin,
-                   address, is_active, created_at, updated_at`,
+         RETURNING ${clientFields}`,
         [
           req.tenant.companyId,
           input.clientCode,
@@ -69,6 +103,20 @@ adminRouter.post(
           input.mobile || null,
           input.gstin || null,
           input.address || null,
+        ],
+      );
+
+      await pool.query(
+        `INSERT INTO audit_logs
+          (company_id, user_id, action, entity_type, entity_id, ip_address, user_agent, metadata)
+         VALUES ($1, $2, 'CLIENT_CREATED', 'client', $3, $4, $5, $6)`,
+        [
+          req.tenant.companyId,
+          req.user.sub,
+          result.rows[0].id,
+          req.ip || null,
+          req.get('user-agent') || null,
+          JSON.stringify({ clientCode: result.rows[0].client_code }),
         ],
       );
 
@@ -92,7 +140,7 @@ adminRouter.post(
   },
 );
 
-adminRouter.patch(
+router.patch(
   '/:id',
   requirePermission('client.manage'),
   async (req, res, next) => {
@@ -110,8 +158,7 @@ adminRouter.patch(
              updated_at = NOW()
          WHERE id = $7
            AND company_id = $8
-         RETURNING id, company_id, client_code, name, email, mobile, gstin,
-                   address, is_active, created_at, updated_at`,
+         RETURNING ${clientFields}`,
         [
           input.clientCode ?? null,
           input.name ?? null,
@@ -129,6 +176,19 @@ adminRouter.patch(
           error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found.' },
         });
       }
+
+      await pool.query(
+        `INSERT INTO audit_logs
+          (company_id, user_id, action, entity_type, entity_id, ip_address, user_agent)
+         VALUES ($1, $2, 'CLIENT_UPDATED', 'client', $3, $4, $5)`,
+        [
+          req.tenant.companyId,
+          req.user.sub,
+          result.rows[0].id,
+          req.ip || null,
+          req.get('user-agent') || null,
+        ],
+      );
 
       return res.json({ client: result.rows[0] });
     } catch (error) {
@@ -150,7 +210,7 @@ adminRouter.patch(
   },
 );
 
-adminRouter.patch(
+router.patch(
   '/:id/status',
   requirePermission('client.manage'),
   async (req, res, next) => {
@@ -163,7 +223,7 @@ adminRouter.patch(
         `UPDATE clients
          SET is_active = $1, updated_at = NOW()
          WHERE id = $2 AND company_id = $3
-         RETURNING id, company_id, client_code, name, is_active, updated_at`,
+         RETURNING ${clientFields}`,
         [input.isActive, req.params.id, req.tenant.companyId],
       );
 
@@ -172,6 +232,20 @@ adminRouter.patch(
           error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found.' },
         });
       }
+
+      await pool.query(
+        `INSERT INTO audit_logs
+          (company_id, user_id, action, entity_type, entity_id, ip_address, user_agent, metadata)
+         VALUES ($1, $2, 'CLIENT_STATUS_CHANGED', 'client', $3, $4, $5, $6)`,
+        [
+          req.tenant.companyId,
+          req.user.sub,
+          result.rows[0].id,
+          req.ip || null,
+          req.get('user-agent') || null,
+          JSON.stringify({ isActive: input.isActive }),
+        ],
+      );
 
       return res.json({ client: result.rows[0] });
     } catch (error) {
