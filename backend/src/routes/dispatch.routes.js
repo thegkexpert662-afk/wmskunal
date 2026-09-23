@@ -271,6 +271,29 @@ router.post('/:id/gate-out', requirePermission('dispatch.manage'), async (req, r
       return res.status(400).json({ error: { code: 'DISPATCH_NOT_READY', message: 'Dispatch must be ready and order must be packed.' } });
     }
 
+    const dispatchItems = await db.query(
+      `SELECT di.order_item_id,di.quantity,oi.ordered_qty,oi.dispatched_qty
+       FROM dispatch_items di
+       JOIN order_items oi ON oi.id=di.order_item_id
+       WHERE di.dispatch_id=$1
+       FOR UPDATE OF oi`,
+      [dispatch.id],
+    );
+
+    for (const item of dispatchItems.rows) {
+      const nextDispatched = Number(item.dispatched_qty || 0) + Number(item.quantity || 0);
+      if (nextDispatched > Number(item.ordered_qty || 0)) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({
+          error: { code: 'DISPATCH_QTY_EXCEEDS_ORDER', message: 'Dispatch quantity exceeds the order quantity.' },
+        });
+      }
+      await db.query(
+        `UPDATE order_items SET dispatched_qty=$1 WHERE id=$2`,
+        [nextDispatched, item.order_item_id],
+      );
+    }
+
     const updated = await db.query(
       `UPDATE dispatch SET status='dispatched',dispatched_at=NOW(),updated_at=NOW()
        WHERE id=$1 RETURNING *`,
