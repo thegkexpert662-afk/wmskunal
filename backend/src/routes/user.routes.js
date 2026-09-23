@@ -387,7 +387,7 @@ router.patch(
           input.department ?? null, input.designation ?? null, nextRole, nextClientId, passwordHash, existing.id],
       );
       await writeAssignments(db, existing.id, warehouseIds, input.primaryWarehouseId, req.user.sub);
-      const user = await serializeUser(updated.rows[0]);
+      const updatedUser = updated.rows[0];
       await db.query(
         `INSERT INTO audit_logs (company_id,user_id,action,entity_type,entity_id,ip_address,user_agent,metadata)
          VALUES ($1,$2,'USER_UPDATED','user',$3,$4,$5,$6)`,
@@ -395,7 +395,7 @@ router.patch(
           JSON.stringify({ role: nextRole, warehouseIds, passwordChanged: Boolean(input.password) })],
       );
       await db.query('COMMIT');
-      return res.json({ user });
+      return res.json({ user: await serializeUser(updatedUser) });
     } catch (error) {
       await db.query('ROLLBACK').catch(() => {});
       if (error.name === 'ZodError') return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid user update.' } });
