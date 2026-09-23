@@ -50,6 +50,7 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
     if (AuthService.instance.session?.role == 'master_admin') {
       try {
         companies = await service.companies();
+        roles = await service.roles();
         if (companies.isEmpty) {
           _msg('No companies found. Create a company first.');
           return;
@@ -132,37 +133,49 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
             ),
           _field(name,'Full Name'),_field(username,'Username',enabled:old==null),_field(email,'Email'),_field(phone,'Phone'),
           _field(emp,'Employee Code'),_field(dept,'Department'),_field(designation,'Designation'),
-          InkWell(
-            onTap: roles.isEmpty
-                ? null
-                : () async {
-                    final selectedRole = await showDialog<String>(
-                      context: ctx,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Select Role'),
-                        content: SizedBox(
-                          width: 450,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () async {
+              if (roles.isEmpty) {
+                _msg('No roles received from server. Please restart the backend and refresh.');
+                return;
+              }
+              final selectedRole = await showModalBottomSheet<String>(
+                context: ctx,
+                isScrollControlled: true,
+                builder: (dialogContext) => SafeArea(
+                  child: SizedBox(
+                    height: 420,
+                    child: Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('Select Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
                           child: ListView(
-                            shrinkWrap: true,
                             children: roles.map((r) {
                               final key = r['key'].toString();
+                              final labelText = r['label']?.toString() ?? key;
                               return ListTile(
-                                title: Text(r['label']?.toString() ?? key),
+                                title: Text(labelText),
                                 subtitle: Text(key),
-                                trailing: key == selected
-                                    ? const Icon(Icons.check_circle)
-                                    : null,
+                                trailing: key == selected ? const Icon(Icons.check_circle) : null,
                                 onTap: () => Navigator.pop(dialogContext, key),
                               );
                             }).toList(),
                           ),
                         ),
-                      ),
-                    );
-                    if (selectedRole != null) {
-                      setD(() => selected = selectedRole);
-                    }
-                  },
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              if (selectedRole != null) {
+                setD(() => selected = selectedRole);
+              }
+            },
             child: InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Role',
@@ -170,12 +183,10 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
                 suffixIcon: Icon(Icons.arrow_drop_down),
               ),
               child: Text(
-                roles
-                    .firstWhere(
-                      (r) => r['key'].toString() == selected,
-                      orElse: () => <String, dynamic>{'label': selected},
-                    )['label']
-                    ?.toString() ?? selected,
+                roles.firstWhere(
+                  (r) => r['key'].toString() == selected,
+                  orElse: () => <String, dynamic>{'label': selected},
+                )['label']?.toString() ?? selected,
               ),
             ),
           ),
