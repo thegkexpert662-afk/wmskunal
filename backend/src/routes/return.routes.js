@@ -67,7 +67,11 @@ function scopeFor(ids, params, alias = 'r') {
 async function getReturn(req, id, db = pool, forUpdate = false) {
   const ids = await assigned(req);
   const params = [id, req.tenant.companyId];
-  const scope = scopeFor(ids, params);
+  let scope = scopeFor(ids, params);
+  if (req.user.role === 'client') {
+    params.push(req.tenant.clientId);
+    scope += ` AND r.client_id = ${params.length}`;
+  }
   return db.query(
     `SELECT r.*,c.client_code,c.name client_name,
             w.code warehouse_code,w.name warehouse_name,
@@ -91,7 +95,11 @@ router.get('/pending', requirePermission('return.read'), async (req, res, next) 
   try {
     const ids = await assigned(req);
     const params = [req.tenant.companyId];
-    const scope = scopeFor(ids, params);
+    let scope = scopeFor(ids, params);
+    if (req.user.role === 'client') {
+      params.push(req.tenant.clientId);
+      scope += ` AND r.client_id = ${params.length}`;
+    }
     const result = await pool.query(
       `SELECT r.*,c.client_code,c.name client_name,o.order_no,
               w.code warehouse_code,w.name warehouse_name,
@@ -120,6 +128,10 @@ router.get('/', requirePermission('return.read'), async (req, res, next) => {
     const ids = await assigned(req);
     const params = [req.tenant.companyId];
     let scope = scopeFor(ids, params);
+    if (req.user.role === 'client') {
+      params.push(req.tenant.clientId);
+      scope += ` AND r.client_id = ${params.length}`;
+    }
     if (req.query.status) {
       params.push(String(req.query.status));
       scope += ` AND r.status=$${params.length}`;
@@ -177,7 +189,11 @@ router.get('/source/orders', requirePermission('return.create'), async (req, res
   try {
     const ids = await assigned(req);
     const params = [req.tenant.companyId];
-    const scope = scopeFor(ids, params, 'o');
+    let scope = scopeFor(ids, params, 'o');
+    if (req.user.role === 'client') {
+      params.push(req.tenant.clientId);
+      scope += ` AND o.client_id = ${params.length}`;
+    }
     const result = await pool.query(
       `SELECT o.id,o.order_no,o.status,o.required_date,o.warehouse_id,
               c.name client_name,w.code warehouse_code,w.name warehouse_name,
@@ -281,6 +297,10 @@ router.post('/', requirePermission('return.create'), async (req, res, next) => {
     if (!order.rowCount) {
       await db.query('ROLLBACK');
       return res.status(404).json({ error: { code: 'ORDER_NOT_FOUND', message: 'Original order not found.' } });
+    }
+    if (req.user.role === 'client' && order.rows[0].client_id !== req.tenant.clientId) {
+      await db.query('ROLLBACK');
+      return res.status(403).json({ error: { code: 'CLIENT_ACCESS_DENIED', message: 'You do not have access to this order.' } });
     }
     if (!['dispatched','delivered'].includes(order.rows[0].status)) {
       await db.query('ROLLBACK');
