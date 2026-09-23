@@ -75,11 +75,61 @@ class _MasterUsersRolesScreenState extends State<MasterUsersRolesScreen> {
       return AlertDialog(
         title:Text(old==null?'Add User':'Edit User'),
         content:SizedBox(width:560,child:SingleChildScrollView(child:Column(children:[
-          if(AuthService.instance.session?.role=='master_admin')DropdownButtonFormField<String>(
-            value:companyId,decoration:const InputDecoration(labelText:'Company'),
-            items:companies.map((c)=>DropdownMenuItem(value:c['id'].toString(),child:Text(c['name'].toString()))).toList(),
-            onChanged:(v)async{companyId=v;selectedWh=[];if(v!=null){try{final x=await service.warehouses(companyId:v);setD(()=>warehouses=x);}catch(e){_msg(e.toString().replaceFirst('Exception: ',''));}}},
-          ),
+          if(AuthService.instance.session?.role=='master_admin')
+            InkWell(
+              onTap: companies.isEmpty
+                  ? null
+                  : () async {
+                      final selectedCompany = await showDialog<String>(
+                        context: ctx,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Select Company'),
+                          content: SizedBox(
+                            width: 450,
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: companies.map((c) {
+                                final id = c['id'].toString();
+                                return ListTile(
+                                  title: Text(c['name']?.toString() ?? '-'),
+                                  subtitle: Text(c['company_code']?.toString() ?? ''),
+                                  trailing: id == companyId
+                                      ? const Icon(Icons.check_circle)
+                                      : null,
+                                  onTap: () => Navigator.pop(dialogContext, id),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                      if (selectedCompany != null) {
+                        companyId = selectedCompany;
+                        selectedWh = [];
+                        try {
+                          final x = await service.warehouses(companyId: selectedCompany);
+                          setD(() => warehouses = x);
+                        } catch (e) {
+                          _msg(e.toString().replaceFirst('Exception: ', ''));
+                        }
+                      }
+                    },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Company',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.arrow_drop_down),
+                ),
+                child: Text(
+                  companyId == null
+                      ? 'Select Company'
+                      : (companies.firstWhere(
+                          (c) => c['id'].toString() == companyId,
+                          orElse: () => <String, dynamic>{'name': 'Select Company'},
+                        )['name']?.toString() ?? 'Select Company'),
+                ),
+              ),
+            ),
           _field(name,'Full Name'),_field(username,'Username',enabled:old==null),_field(email,'Email'),_field(phone,'Phone'),
           _field(emp,'Employee Code'),_field(dept,'Department'),_field(designation,'Designation'),
           DropdownButtonFormField<String>(value:selected,decoration:const InputDecoration(labelText:'Role'),items:roles.map((r)=>DropdownMenuItem(value:r['key'].toString(),child:Text(r['label'].toString()))).toList(),onChanged:(v)=>setD(()=>selected=v??selected)),
