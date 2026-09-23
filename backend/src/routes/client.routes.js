@@ -83,6 +83,33 @@ router.get(
   },
 );
 
+router.get(
+  '/:id',
+  requirePermission('client.read'),
+  async (req, res, next) => {
+    try {
+      const result = await pool.query(
+        `SELECT ${clientFields}
+         FROM clients
+         WHERE id = $1
+           AND company_id = $2
+         LIMIT 1`,
+        [req.params.id, req.tenant.companyId],
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found.' },
+        });
+      }
+
+      return res.json({ client: result.rows[0] });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
 router.post(
   '/',
   requirePermission('client.manage'),
