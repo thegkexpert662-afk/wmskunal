@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS user_warehouses (
 
 CREATE INDEX IF NOT EXISTS idx_user_warehouses_warehouse ON user_warehouses(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_users_company_role ON users(company_id, role);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username_global_ci ON users (LOWER(TRIM(username)));
 
 CREATE TABLE IF NOT EXISTS grns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
