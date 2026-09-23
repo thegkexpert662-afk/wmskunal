@@ -1,467 +1,220 @@
 import 'package:flutter/material.dart';
-
-import '../common_widgets.dart';
+import '../../services/packing_service.dart';
 
 class AdminPackingScreen extends StatefulWidget {
   const AdminPackingScreen({super.key});
-
-  @override
-  State<AdminPackingScreen> createState() => _AdminPackingScreenState();
+  @override State<AdminPackingScreen> createState() => _AdminPackingScreenState();
 }
 
 class _AdminPackingScreenState extends State<AdminPackingScreen> {
-  final TextEditingController search = TextEditingController();
-  String status = 'All';
+  final api = PackingService.instance;
+  bool loading = true;
+  String? error;
+  List<Map<String,dynamic>> pending = [];
+  List<Map<String,dynamic>> tasks = [];
 
-  final List<List<String>> records = const [
-    ['PACK-3018', 'ORD-10284', 'ABC Industries', 'Main Warehouse', '12', '580', 'Rakesh', 'In Progress'],
-    ['PACK-3017', 'ORD-10283', 'Metro Retail', 'Ankleshwar WH', '18', '1,240', 'Amit', 'Ready'],
-    ['PACK-3016', 'ORD-10282', 'Prime Traders', 'Vilayat Warehouse', '08', '760', 'Suresh', 'Completed'],
-    ['PACK-3015', 'ORD-10281', 'Global Parts', 'Main Warehouse', '11', '420', 'Neha', 'Pending'],
-    ['PACK-3014', 'ORD-10280', 'ABC Industries', 'Delhi Warehouse', '06', '310', 'Vikas', 'Completed'],
-    ['PACK-3013', 'ORD-10279', 'Metro Retail', 'Mumbai Warehouse', '09', '680', '-', 'Pending'],
-    ['PACK-3012', 'ORD-10278', 'Prime Traders', 'Ankleshwar WH', '14', '950', 'Rahul', 'In Progress'],
-    ['PACK-3011', 'ORD-10277', 'Global Parts', 'Main Warehouse', '05', '220', 'Sohan', 'Ready'],
-  ];
+  @override void initState() { super.initState(); load(); }
 
-  List<List<String>> get filteredRecords {
-    final query = search.text.toLowerCase().trim();
-
-    return records.where((record) {
-      final matchesSearch = query.isEmpty ||
-          record.any((value) => value.toLowerCase().contains(query));
-      final matchesStatus = status == 'All' || record[7] == status;
-      return matchesSearch && matchesStatus;
-    }).toList();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    search.addListener(_onSearchChanged);
-  }
-
-  void _onSearchChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    search.removeListener(_onSearchChanged);
-    search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 1050;
-
-    return ScreenFrame(
-      title: 'Packing',
-      subtitle: 'Pack picked orders, verify quantities and prepare shipments.',
-      actions: [
-        FilledButton.icon(
-          onPressed: () => _msg('Packing task created.'),
-          icon: const Icon(Icons.add_box_outlined),
-          label: const Text('Create Packing Task'),
-        ),
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _stats(compact),
-          const SizedBox(height: 16),
-          if (compact)
-            Column(
-              children: [
-                _table(),
-                const SizedBox(height: 14),
-                _details(),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 8, child: _table()),
-                const SizedBox(width: 14),
-                Expanded(flex: 3, child: _details()),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stats(bool compact) {
-    final data = <List<Object>>[
-      ['Total Packs', '186', 'All Packing Tasks', Icons.inventory_2_outlined, const Color(0xFF1769E8), const Color(0xFFEAF2FF)],
-      ['Pending', '24', 'Awaiting Packing', Icons.pending_actions_outlined, const Color(0xFFE49A0A), const Color(0xFFFFF3D9)],
-      ['In Progress', '31', 'Currently Packing', Icons.all_inbox_outlined, const Color(0xFF7447D8), const Color(0xFFF0EAFF)],
-      ['Ready', '18', 'Ready for Dispatch', Icons.check_circle_outline, const Color(0xFF16A05D), const Color(0xFFE7F9EF)],
-      ['Completed', '113', 'Successfully Packed', Icons.task_alt_outlined, const Color(0xFF08A4A6), const Color(0xFFE5FAFA)],
-    ];
-
-    final cards = data.map((item) => _stat(
-      item[0] as String,
-      item[1] as String,
-      item[2] as String,
-      item[3] as IconData,
-      item[4] as Color,
-      item[5] as Color,
-    )).toList();
-
-    if (compact) {
-      return GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 2.2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: cards,
-      );
+  Future<void> load() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final r = await Future.wait([api.pending(), api.tasks()]);
+      if (!mounted) return;
+      setState(() { pending = r[0]; tasks = r[1]; loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { error = e.toString().replaceFirst('Exception: ', ''); loading = false; });
     }
-
-    return Row(
-      children: [
-        for (int i = 0; i < cards.length; i++) ...[
-          Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 12),
-        ],
-      ],
-    );
   }
 
-  Widget _stat(String title, String value, String subtitle, IconData icon, Color color, Color background) {
+  void snack(String s, [bool bad=false]) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s), backgroundColor: bad ? Colors.red.shade700 : null));
+  }
+
+  Future<void> start(Map<String,dynamic> o) async {
+    try { await api.createTask(o['id'].toString()); snack('Packing task created.'); await load(); }
+    catch(e) { snack(e.toString().replaceFirst('Exception: ', ''), true); }
+  }
+
+  Future<void> openTask(Map<String,dynamic> t) async {
+    try {
+      final d = await api.detail(t['id'].toString());
+      if (!mounted) return;
+      await showDialog(context: context, barrierDismissible: false, builder: (_) => PackingTaskDialog(api: api, initial: d));
+      await load();
+    } catch(e) { snack(e.toString().replaceFirst('Exception: ', ''), true); }
+  }
+
+  @override Widget build(BuildContext context) {
+    final active = tasks.where((x) => x['status'] == 'in_progress').length;
+    final ready = tasks.where((x) => x['status'] == 'ready').length;
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _boxDecoration(),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(11)),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _bold(12)),
-                const SizedBox(height: 3),
-                Text(value, style: _bold(23)),
-                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF738298), fontSize: 10)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      color: const Color(0xFFF5F7FB), padding: const EdgeInsets.all(22),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Packing', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF10243E))),
+            SizedBox(height: 4),
+            Text('Verify picked quantities, create packages and release orders to dispatch.', style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
+          ])),
+          OutlinedButton.icon(onPressed: loading ? null : load, icon: const Icon(Icons.refresh, size: 17), label: const Text('Refresh')),
+        ]),
+        const SizedBox(height: 16),
+        Row(children: [
+          stat('Ready to Pack', pending.length, Icons.inventory_2_outlined),
+          const SizedBox(width: 9), stat('Active', active, Icons.playlist_add_check_outlined),
+          const SizedBox(width: 9), stat('Ready Dispatch', ready, Icons.local_shipping_outlined),
+          const SizedBox(width: 9), stat('Packages', tasks.fold<int>(0, (a,x) => a + ((x['total_packages'] as num?)?.toInt() ?? 0)), Icons.all_inbox_outlined),
+        ]),
+        const SizedBox(height: 14),
+        if (error != null) errorBox(),
+        Expanded(child: loading ? const Center(child: CircularProgressIndicator()) : DefaultTabController(
+          length: 2, child: Column(children: [
+            const TabBar(tabs: [Tab(text: 'Ready to Pack'), Tab(text: 'Packing Tasks')]),
+            const SizedBox(height: 8),
+            Expanded(child: TabBarView(children: [pendingTable(), tasksTable()])),
+          ]),
+        )),
+      ]),
     );
   }
 
-  BoxDecoration _boxDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFE1E8F1)),
-      boxShadow: const [BoxShadow(color: Color(0x0A18304F), blurRadius: 12, offset: Offset(0, 4))],
+  Widget stat(String title, int n, IconData icon) => Expanded(child: Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11), border: Border.all(color: const Color(0xFFE1E7EF))),
+    child: Row(children: [
+      Container(width: 38, height: 38, decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(9)), child: Icon(icon, color: const Color(0xFF1769E8))),
+      const SizedBox(width: 9), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF718096))), Text(n.toString(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+      ]),
+    ]),
+  ));
+
+  Widget errorBox() => Container(width: double.infinity, padding: const EdgeInsets.all(10), margin: const EdgeInsets.only(bottom: 8),
+    color: const Color(0xFFFFF2F2), child: Row(children: [const Icon(Icons.error_outline, color: Colors.red), const SizedBox(width: 8), Expanded(child: Text(error!)), TextButton(onPressed: load, child: const Text('Retry'))]));
+
+  Widget pendingTable() {
+    if (pending.isEmpty) return const Center(child: Text('No orders are ready for packing.'));
+    return table(['Order','Client','Warehouse','Items','Picked','Required','Action'],
+      pending.map((o) => [o['order_no'],o['client_name'],o['warehouse_name'],o['item_count'],o['picked_qty'],o['required_date'] ?? '-',ElevatedButton(onPressed: () => start(o), child: const Text('Start Packing'))]).toList());
+  }
+
+  Widget tasksTable() {
+    if (tasks.isEmpty) return const Center(child: Text('No packing tasks found.'));
+    return table(['Packing No','Order','Client','Warehouse','Status','Packages','Packed','Action'],
+      tasks.map((t) => [t['packing_no'],t['order_no'],t['client_name'],t['warehouse_name'],status(t['status'].toString()),t['total_packages'],t['packed_qty'],OutlinedButton(onPressed: () => openTask(t), child: const Text('Open'))]).toList());
+  }
+
+  Widget table(List<String> heads, List<List<dynamic>> rows) => Container(
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9), border: Border.all(color: const Color(0xFFE1E7EF))),
+    child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(
+      columns: heads.map((x) => DataColumn(label: Text(x, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)))).toList(),
+      rows: rows.map((r) => DataRow(cells: r.map((v) => DataCell(v is Widget ? v : Text(v.toString(), style: const TextStyle(fontSize: 10)))).toList())).toList(),
+    )),
+  );
+
+  Widget status(String s) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(color: s == 'ready' ? const Color(0xFFE9F8EF) : const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(15)),
+    child: Text(s.replaceAll('_',' ').toUpperCase(), style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800)));
+
+}
+
+class PackingTaskDialog extends StatefulWidget {
+  final PackingService api; final Map<String,dynamic> initial;
+  const PackingTaskDialog({super.key, required this.api, required this.initial});
+  @override State<PackingTaskDialog> createState() => _PackingTaskDialogState();
+}
+
+class _PackingTaskDialogState extends State<PackingTaskDialog> {
+  late Map<String,dynamic> d; bool busy=false;
+  @override void initState(){super.initState();d=widget.initial;}
+  List<Map<String,dynamic>> get items => (d['items'] as List? ?? []).map((x)=>Map<String,dynamic>.from(x)).toList();
+  List<Map<String,dynamic>> get packages => (d['packages'] as List? ?? []).map((x)=>Map<String,dynamic>.from(x)).toList();
+
+  Future<void> reload() async {
+    final x=await widget.api.detail(d['task']['id'].toString());
+    if(mounted)setState(()=>d=x);
+  }
+
+  Future<void> createPackage() async {
+    final x=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>const PackageForm());
+    if(x==null)return; setState(()=>busy=true);
+    try { await widget.api.createPackage(d['task']['id'].toString(),packageNo:x['no'],packageType:x['type'],weight:x['weight'],length:x['length'],width:x['width'],height:x['height']); await reload(); }
+    catch(e){snack(e.toString().replaceFirst('Exception: ',''),true);} finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  Future<void> packItem() async {
+    final good=items.where((x)=>(x['remaining_qty'] as num?)?.toDouble() ?? 0 > 0).toList();
+    if(packages.isEmpty){snack('Create a package first.',true);return;}
+    if(good.isEmpty){snack('All picked quantities are packed.',true);return;}
+    final x=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>PackForm(items:good,packages:packages));
+    if(x==null)return; setState(()=>busy=true);
+    try { await widget.api.pack(d['task']['id'].toString(),orderItemId:x['item'],packageId:x['package'],quantity:x['qty']); await reload(); }
+    catch(e){snack(e.toString().replaceFirst('Exception: ',''),true);} finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  Future<void> complete() async {
+    setState(()=>busy=true);
+    try { await widget.api.complete(d['task']['id'].toString()); await reload(); snack('Packing completed. Order is ready for dispatch.'); }
+    catch(e){snack(e.toString().replaceFirst('Exception: ',''),true);} finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  void snack(String s,[bool bad=false])=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s),backgroundColor:bad?Colors.red.shade700:null));
+
+  @override Widget build(BuildContext context){
+    final t=Map<String,dynamic>.from(d['task']); final st=t['status'].toString();
+    final picked=items.fold<double>(0,(a,x)=>a+((x['picked_qty'] as num?)?.toDouble()??0));
+    final packed=items.fold<double>(0,(a,x)=>a+((x['packed_qty'] as num?)?.toDouble()??0));
+    return AlertDialog(
+      title: Row(children:[Expanded(child:Text((t['packing_no']??'Packing').toString()+' • '+(t['order_no']??'').toString())),pill(st)]),
+      content:SizedBox(width:900,height:540,child:busy?const Center(child:CircularProgressIndicator()):Column(children:[
+        Align(alignment:Alignment.centerLeft,child:Text((t['client_name']??'-').toString()+' • '+(t['warehouse_name']??'-').toString())),
+        const SizedBox(height:10),
+        Row(children:[mini('Picked',picked),mini('Packed',packed),mini('Balance',picked-packed),mini('Packages',packages.length.toDouble())]),
+        const SizedBox(height:10),
+        Expanded(child:Row(children:[Expanded(child:itemsTable()),const SizedBox(width:10),SizedBox(width:270,child:packagePanel())])),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Close')),if(st=='in_progress')...[
+        OutlinedButton.icon(onPressed:createPackage,icon:const Icon(Icons.add_box_outlined),label:const Text('New Package')),
+        ElevatedButton.icon(onPressed:packItem,icon:const Icon(Icons.inventory_2_outlined),label:const Text('Pack Item')),
+        ElevatedButton.icon(onPressed:complete,icon:const Icon(Icons.check_circle_outline),label:const Text('Mark Ready')),
+      ]],
     );
   }
 
-  TextStyle _bold(double size) {
-    return TextStyle(color: const Color(0xFF162B46), fontSize: size, fontWeight: FontWeight.w800);
-  }
+  Widget mini(String title,double v)=>Expanded(child:Container(margin:const EdgeInsets.only(right:6),padding:const EdgeInsets.all(8),color:const Color(0xFFF5F8FC),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:8)),Text(v.toStringAsFixed(2),style:const TextStyle(fontWeight:FontWeight.w800))])));
+  Widget pill(String s)=>Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),color:const Color(0xFFEAF2FF),child:Text(s.replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:8,fontWeight:FontWeight.w800)));
+  Widget itemsTable()=>SingleChildScrollView(child:DataTable(columns:const[DataColumn(label:Text('SKU')),DataColumn(label:Text('Product')),DataColumn(label:Text('Picked')),DataColumn(label:Text('Packed')),DataColumn(label:Text('Balance'))],rows:items.map((i)=>DataRow(cells:[DataCell(Text(i['sku'].toString())),DataCell(Text(i['product_name'].toString())),DataCell(Text(i['picked_qty'].toString())),DataCell(Text(i['packed_qty'].toString())),DataCell(Text(i['remaining_qty'].toString()))])).toList()));
+  Widget packagePanel()=>Container(padding:const EdgeInsets.all(8),color:const Color(0xFFF8FAFD),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Packages',style:TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:5),Expanded(child:ListView.builder(itemCount:packages.length,itemBuilder:(_,i){final p=packages[i];return ListTile(dense:true,contentPadding:EdgeInsets.zero,title:Text(p['package_no'].toString()),subtitle:Text(p['package_type'].toString()+' • '+p['weight'].toString()+' kg'));}))]));
+}
 
-  Widget _panel(String title, Widget body) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _boxDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: _bold(14)),
-          const SizedBox(height: 8),
-          body,
-        ],
-      ),
-    );
-  }
+class PackageForm extends StatefulWidget {
+  const PackageForm({super.key});
+  @override State<PackageForm> createState()=>_PackageFormState();
+}
+class _PackageFormState extends State<PackageForm>{
+  final no=TextEditingController(),type=TextEditingController(text:'Box'),weight=TextEditingController(text:'0'),length=TextEditingController(text:'0'),width=TextEditingController(text:'0'),height=TextEditingController(text:'0');
+  @override void dispose(){no.dispose();type.dispose();weight.dispose();length.dispose();width.dispose();height.dispose();super.dispose();}
+  @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Create Package'),content:SizedBox(width:420,child:Column(mainAxisSize:MainAxisSize.min,children:[
+    TextField(controller:no,decoration:const InputDecoration(labelText:'Package No')),
+    TextField(controller:type,decoration:const InputDecoration(labelText:'Package Type')),
+    Row(children:[Expanded(child:TextField(controller:weight,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Weight kg'))),const SizedBox(width:8),Expanded(child:TextField(controller:length,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Length')))]),
+    Row(children:[Expanded(child:TextField(controller:width,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Width'))),const SizedBox(width:8),Expanded(child:TextField(controller:height,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Height')))]),
+  ])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){if(no.text.trim().isEmpty)return;Navigator.pop(c,{'no':no.text.trim(),'type':type.text.trim().isEmpty?'Box':type.text.trim(),'weight':double.tryParse(weight.text)??0,'length':double.tryParse(length.text)??0,'width':double.tryParse(width.text)??0,'height':double.tryParse(height.text)??0});},child:const Text('Create'))]);
+}
 
-  Widget _table() {
-    final rows = filteredRecords;
-
-    return _panel(
-      'Packing Tasks',
-      Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: 310,
-                  height: 40,
-                  child: TextField(
-                    controller: search,
-                    decoration: InputDecoration(
-                      hintText: 'Search pack ID, order, client...',
-                      hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF8290A2)),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFDCE4EE)),
-                      ),
-                    ),
-                  ),
-                ),
-                _statusDropdown(),
-                OutlinedButton.icon(
-                  onPressed: () => _msg('Packing records filtered.'),
-                  icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                  label: const Text('Filter'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _msg('Packing records exported.'),
-                  icon: const Icon(Icons.download_outlined, size: 16),
-                  label: const Text('Export'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          HorizontalTableScroller(
-            child: DataTable(
-              headingTextStyle: const TextStyle(
-                color: Color(0xFF43546A),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-              dataTextStyle: const TextStyle(
-                color: Color(0xFF26384F),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              headingRowHeight: 48,
-              dataRowMinHeight: 52,
-              dataRowMaxHeight: 58,
-              columnSpacing: 26,
-              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
-              columns: const [
-                DataColumn(columnWidth: const FixedColumnWidth(50), label: Text('#')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Pack ID')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Order')),
-                DataColumn(columnWidth: const FixedColumnWidth(160), label: Text('Client')),
-                DataColumn(columnWidth: const FixedColumnWidth(140), label: Text('Warehouse')),
-                DataColumn(columnWidth: const FixedColumnWidth(75), label: Text('Lines')),
-                DataColumn(columnWidth: const FixedColumnWidth(75), label: Text('Qty')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Packer')),
-                DataColumn(columnWidth: const FixedColumnWidth(105), label: Text('Status')),
-                DataColumn(columnWidth: const FixedColumnWidth(90), label: Text('Actions')),
-              ],
-              rows: List<DataRow>.generate(rows.length, (index) {
-                final row = rows[index];
-                return DataRow(
-                  cells: [
-                    DataCell(Text('${index + 1}')),
-                    DataCell(Text(row[0])),
-                    DataCell(Text(row[1], style: const TextStyle(fontWeight: FontWeight.w700))),
-                    DataCell(Text(row[2])),
-                    DataCell(Text(row[3])),
-                    DataCell(Text(row[4])),
-                    DataCell(Text(row[5])),
-                    DataCell(Text(row[6])),
-                    DataCell(_status(row[7])),
-                    DataCell(
-                      IconButton(
-                        onPressed: () => _msg('Viewing ${row[0]}'),
-                        icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17),
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              children: [
-                Text('Showing 1 to ${rows.length} of 186 entries', style: const TextStyle(color: Color(0xFF718096), fontSize: 10)),
-                const Spacer(),
-                _page('Prev'),
-                _page('1', true),
-                _page('2'),
-                _page('3'),
-                _page('4'),
-                _page('5'),
-                _page('…'),
-                _page('19'),
-                _page('Next'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusDropdown() {
-    final values = <String>['All', 'Pending', 'In Progress', 'Ready', 'Completed'];
-
-    return Container(
-      height: 40,
-      width: 145,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFDCE4EE)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: status,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-          style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600),
-          items: values.map((value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value == 'All' ? 'Status: All' : value),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => status = value);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _status(String value) {
-    final Map<String, List<Color>> colors = {
-      'Pending': [const Color(0xFFFFF0D8), const Color(0xFFE28C00)],
-      'In Progress': [const Color(0xFFF0EAFF), const Color(0xFF7447D8)],
-      'Ready': [const Color(0xFFEAF2FF), const Color(0xFF1769E8)],
-      'Completed': [const Color(0xFFE4F7EC), const Color(0xFF14894E)],
-    };
-
-    final pair = colors[value] ?? [const Color(0xFFF1F4F8), const Color(0xFF63738A)];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(color: pair[0], borderRadius: BorderRadius.circular(6)),
-      child: Text(value, style: TextStyle(color: pair[1], fontSize: 8, fontWeight: FontWeight.w800)),
-    );
-  }
-
-  Widget _page(String label, [bool active = false]) {
-    return Container(
-      margin: const EdgeInsets.only(left: 4),
-      height: 30,
-      constraints: const BoxConstraints(minWidth: 30),
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFF1769E8) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: active ? const Color(0xFF1769E8) : const Color(0xFFDDE5EF)),
-      ),
-      child: Text(label, style: TextStyle(color: active ? Colors.white : const Color(0xFF63738A), fontSize: 9, fontWeight: FontWeight.w700)),
-    );
-  }
-
-  Widget _details() {
-    return _panel(
-      'Packing Details',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFF5F9FF), borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              children: [
-                Container(
-                  width: 45,
-                  height: 45,
-                  decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF1769E8), size: 25),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('PACK-3018', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF172A43))),
-                      SizedBox(height: 3),
-                      Text('ORD-10284 • 12 Lines', style: TextStyle(fontSize: 9, color: Color(0xFF718096))),
-                    ],
-                  ),
-                ),
-                _status('In Progress'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _detail('Client', 'ABC Industries', Icons.business_outlined),
-          _detail('Warehouse', 'Main Warehouse', Icons.warehouse_outlined),
-          _detail('Packer', 'Rakesh Sharma', Icons.person_outline),
-          _detail('Total Quantity', '580', Icons.inventory_2_outlined),
-          _detail('Packages', '24', Icons.all_inbox_outlined),
-          _detail('Packing Type', 'Standard', Icons.inventory_outlined),
-          const Divider(height: 22),
-          const Text('Packing Progress', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF172A43))),
-          const SizedBox(height: 10),
-          const LinearProgressIndicator(value: 0.72, minHeight: 7),
-          const SizedBox(height: 7),
-          const Text('72% packed • 18 of 24 packages completed', style: TextStyle(fontSize: 9, color: Color(0xFF718096))),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _msg('Packing task edited.'),
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _msg('Packing marked ready.'),
-                  icon: const Icon(Icons.check_circle_outline, size: 16),
-                  label: const Text('Mark Ready'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detail(String title, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFF718096)),
-          const SizedBox(width: 9),
-          Expanded(child: Text(title, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)))),
-          Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF27394F))),
-        ],
-      ),
-    );
-  }
-
-  void _msg(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
+class PackForm extends StatefulWidget{
+  final List<Map<String,dynamic>> items,packages;
+  const PackForm({super.key,required this.items,required this.packages});
+  @override State<PackForm> createState()=>_PackFormState();
+}
+class _PackFormState extends State<PackForm>{
+  String? item,package;final qty=TextEditingController();
+  @override void dispose(){qty.dispose();super.dispose();}
+  @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Pack Item'),content:SizedBox(width:450,child:Column(mainAxisSize:MainAxisSize.min,children:[
+    DropdownButtonFormField<String>(value:item,decoration:const InputDecoration(labelText:'Product / Order Item'),items:items.map((i)=>DropdownMenuItem(value:i['order_item_id'].toString(),child:Text(i['sku'].toString()+' • '+i['product_name'].toString()))).toList(),onChanged:(v)=>setState(()=>item=v)),
+    const SizedBox(height:8),
+    DropdownButtonFormField<String>(value:package,decoration:const InputDecoration(labelText:'Package'),items:packages.map((p)=>DropdownMenuItem(value:p['id'].toString(),child:Text(p['package_no'].toString()))).toList(),onChanged:(v)=>setState(()=>package=v)),
+    TextField(controller:qty,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Quantity')),
+  ])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){final q=double.tryParse(qty.text);if(item==null||package==null||q==null||q<=0)return;Navigator.pop(c,{'item':item,'package':package,'qty':q});},child:const Text('Pack'))]);
 }
