@@ -363,6 +363,7 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
   final damaged = <String, TextEditingController>{};
   final rejected = <String, TextEditingController>{};
   final locations = <String, String?>{};
+  final damagedLocations = <String, String?>{};
   List<Map<String, dynamic>> warehouseLocations = [];
   bool locationLoading = false;
 
@@ -426,6 +427,7 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
         'damagedQty': double.tryParse(damaged[id]?.text ?? '0') ?? 0,
         'rejectedQty': double.tryParse(rejected[id]?.text ?? '0') ?? 0,
         'locationId': locations[id],
+        'damagedLocationId': damagedLocations[id],
       };
     }).toList();
     try {
@@ -488,14 +490,24 @@ class _ReturnDetailDialogState extends State<_ReturnDetailDialog> {
                 DataCell(SizedBox(width: 90, child: TextField(controller: accepted[id], enabled: status == 'qc_pending', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
                 DataCell(SizedBox(width: 90, child: TextField(controller: damaged[id], enabled: status == 'QC_PENDING', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
                 DataCell(SizedBox(width: 90, child: TextField(controller: rejected[id], enabled: status == 'QC_PENDING', keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())))),
-                DataCell(SizedBox(width: 190, child: DropdownButton<String>(
+                DataCell(SizedBox(width: 170, child: DropdownButton<String>(
                   isExpanded: true,
                   value: locations[id],
-                  hint: const Text('Location'),
+                  hint: const Text('Good Location'),
                   items: warehouseLocations.map((loc) => DropdownMenuItem(value: loc['id'].toString(), child: Text(loc['code'].toString()))).toList(),
                   onChanged: status == 'qc_pending' ? (v) => setState(() => locations[id] = v) : null,
                 ))),
+                DataCell(SizedBox(width: 170, child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: damagedLocations[id],
+                  hint: const Text('Damage Location'),
+                  items: warehouseLocations.map((loc) => DropdownMenuItem(value: loc['id'].toString(), child: Text(loc['code'].toString()))).toList(),
+                  onChanged: status == 'qc_pending' ? (v) => setState(() => damagedLocations[id] = v) : null,
+                ))),
                 DataCell(_chip(value(x['qc_result']))),
+                DataCell(Text(value(x['qc_by_name']))),
+                DataCell(Text(value(x['rejected_by_name']))),
+                DataCell(SizedBox(width: 180, child: Text(value(x['rejection_reason'] ?? x['remarks']), overflow: TextOverflow.ellipsis))),
               ]);
             }).toList(),
           )),
