@@ -10,6 +10,7 @@ const deviceRoutes = require('./routes/device.routes');
 const companyRoutes = require('./routes/company.routes');
 const clientRoutes = require('./routes/client.routes');
 const userRoutes = require('./routes/user.routes');
+const warehouseRoutes = require('./routes/warehouse.routes');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/warehouses', warehouseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
