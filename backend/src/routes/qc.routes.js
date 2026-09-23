@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireApprovedDevice } = require('../middleware/device');
 const { requireCompanyModule } = require('../middleware/company');
-const { requireRole } = require('../middleware/role');
+const { getAssignedWarehouseIds } = require('../middleware/warehouse_access');
 const { requirePermission } = require('../middleware/permission');
 const { requireTenantContext } = require('../middleware/tenant');
 
@@ -22,22 +22,28 @@ const qcSchema = z.object({
   }
 });
 
-router.use(requireAuth, requireApprovedDevice, requireTenantContext, requireRole('admin'), requireCompanyModule('qc'));
+router.use(requireAuth, requireApprovedDevice, requireTenantContext, requireCompanyModule('qc'));
+
+function denied(ids, warehouseId) { return ids.length && !ids.includes(warehouseId); }
 
 router.get('/pending', requirePermission('qc.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    const params = [req.tenant.companyId];
+    let filter = '';
+    if (ids.length) { params.push(ids); filter = ' AND w.id = ANY($2::uuid[])'; }
     const result = await pool.query(
       "SELECT 'grn' AS source_type, gi.id AS source_item_id, g.id AS source_id, " +
       "g.grn_no AS reference_no, p.sku, p.name, gi.received_qty AS quantity, gi.qc_status, w.name AS warehouse " +
       "FROM grn_items gi JOIN grns g ON g.id = gi.grn_id JOIN products p ON p.id = gi.product_id " +
       "LEFT JOIN warehouses w ON w.id = g.warehouse_id " +
-      "WHERE g.company_id = $1 AND gi.qc_status = 'pending' " +
-      "UNION ALL " +
+      "WHERE g.company_id = $1 AND gi.qc_status = 'pending' " + filter +
+      " UNION ALL " +
       "SELECT 'production' AS source_type, pri.id, r.id, r.receipt_no, p.sku, p.name, pri.received_qty, pri.qc_status, w.name " +
       "FROM production_receipt_items pri JOIN production_receipts r ON r.id = pri.receipt_id JOIN products p ON p.id = pri.product_id " +
       "LEFT JOIN warehouses w ON w.id = r.warehouse_id " +
-      "WHERE r.company_id = $1 AND pri.qc_status = 'pending' ORDER BY reference_no",
-      [req.tenant.companyId],
+      "WHERE r.company_id = $1 AND pri.qc_status = 'pending' " + filter + " ORDER BY reference_no",
+      params,
     );
     return res.json({ data: result.rows });
   } catch (error) { return next(error); }
@@ -45,15 +51,20 @@ router.get('/pending', requirePermission('qc.read'), async (req, res, next) => {
 
 router.get('/', requirePermission('qc.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    const params = [req.tenant.companyId];
+    let filter = '';
+    if (ids.length) { params.push(ids); filter = ' AND w.id = ANY($2::uuid[])'; }
     const result = await pool.query(
       "SELECT q.*, CASE WHEN q.grn_item_id IS NOT NULL THEN 'grn' ELSE 'production' END AS source_type, " +
       "COALESCE(g.grn_no, pr.receipt_no) AS reference_no, p.sku, p.name " +
       "FROM qc_records q LEFT JOIN grn_items gi ON gi.id = q.grn_item_id LEFT JOIN grns g ON g.id = gi.grn_id " +
       "LEFT JOIN production_receipt_items pri ON pri.id = q.production_receipt_item_id " +
+      "LEFT JOIN warehouses w ON w.id = COALESCE(g.warehouse_id, (SELECT pr2.warehouse_id FROM production_receipts pr2 WHERE pr2.id = pri.receipt_id)) " +
       "LEFT JOIN production_receipts pr ON pr.id = pri.receipt_id " +
       "LEFT JOIN products p ON p.id = COALESCE(gi.product_id, pri.product_id) " +
-      "WHERE q.company_id = $1 ORDER BY q.created_at DESC LIMIT 100",
-      [req.tenant.companyId],
+      "WHERE q.company_id = $1 " + filter + " ORDER BY q.created_at DESC LIMIT 100",
+      params,
     );
     return res.json({ data: result.rows });
   } catch (error) { return next(error); }
@@ -67,11 +78,11 @@ router.post('/', requirePermission('qc.manage'), async (req, res, next) => {
 
     const source = input.sourceType === 'grn'
       ? await client.query(
-          "SELECT gi.id, gi.product_id, gi.received_qty, gi.qc_status, g.id AS parent_id " +
+          "SELECT gi.id, gi.product_id, gi.received_qty, gi.qc_status, g.id AS parent_id, g.warehouse_id " +
           "FROM grn_items gi JOIN grns g ON g.id = gi.grn_id WHERE gi.id = $1 AND g.company_id = $2 FOR UPDATE",
           [input.sourceItemId, req.tenant.companyId])
       : await client.query(
-          "SELECT pri.id, pri.product_id, pri.received_qty, pri.qc_status, r.id AS parent_id " +
+          "SELECT pri.id, pri.product_id, pri.received_qty, pri.qc_status, r.id AS parent_id, r.warehouse_id " +
           "FROM production_receipt_items pri JOIN production_receipts r ON r.id = pri.receipt_id WHERE pri.id = $1 AND r.company_id = $2 FOR UPDATE",
           [input.sourceItemId, req.tenant.companyId]);
 
@@ -80,6 +91,11 @@ router.post('/', requirePermission('qc.manage'), async (req, res, next) => {
       error.statusCode = 404; error.code = 'QC_SOURCE_NOT_FOUND'; throw error;
     }
     const item = source.rows[0];
+    const assignedIds = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    if (denied(assignedIds, item.warehouse_id)) {
+      const error = new Error('You are not assigned to this warehouse.');
+      error.statusCode = 403; error.code = 'WAREHOUSE_ACCESS_DENIED'; throw error;
+    }
     if (item.qc_status !== 'pending') {
       const error = new Error('This item has already been processed by QC.');
       error.statusCode = 409; error.code = 'QC_ALREADY_PROCESSED'; throw error;
@@ -106,10 +122,22 @@ router.post('/', requirePermission('qc.manage'), async (req, res, next) => {
 
     if (input.sourceType === 'grn') {
       await client.query('UPDATE grn_items SET qc_status = $1 WHERE id = $2', [newStatus, input.sourceItemId]);
-      await client.query('UPDATE grns SET status = $1, updated_at = NOW() WHERE id = $2', [newStatus, item.parent_id]);
+      const parentItems = await client.query('SELECT qc_status FROM grn_items WHERE grn_id = $1', [item.parent_id]);
+      const statuses = parentItems.rows.map(r => r.qc_status);
+      const parentStatus = statuses.every(s => s === 'approved') ? 'approved'
+        : statuses.every(s => s === 'rejected') ? 'rejected'
+        : statuses.every(s => s === 'pending') ? 'pending'
+        : 'partial';
+      await client.query('UPDATE grns SET status = $1, updated_at = NOW() WHERE id = $2', [parentStatus, item.parent_id]);
     } else {
       await client.query('UPDATE production_receipt_items SET qc_status = $1 WHERE id = $2', [newStatus, input.sourceItemId]);
-      await client.query('UPDATE production_receipts SET status = $1, updated_at = NOW() WHERE id = $2', [newStatus, item.parent_id]);
+      const parentItems = await client.query('SELECT qc_status FROM production_receipt_items WHERE receipt_id = $1', [item.parent_id]);
+      const statuses = parentItems.rows.map(r => r.qc_status);
+      const parentStatus = statuses.every(s => s === 'approved') ? 'approved'
+        : statuses.every(s => s === 'rejected') ? 'rejected'
+        : statuses.every(s => s === 'pending') ? 'pending'
+        : 'partial';
+      await client.query('UPDATE production_receipts SET status = $1, updated_at = NOW() WHERE id = $2', [parentStatus, item.parent_id]);
     }
 
     await client.query(
