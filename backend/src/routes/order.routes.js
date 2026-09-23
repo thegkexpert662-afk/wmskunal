@@ -143,7 +143,7 @@ router.get('/:id', requirePermission('order.read'), async (req, res, next) => {
        FROM order_items oi
        JOIN products p ON p.id = oi.product_id
        WHERE oi.order_id = $1
-       ORDER BY oi.created_at NULLS LAST, p.name`,
+       ORDER BY p.name`,
       [req.params.id],
     );
 
@@ -189,10 +189,10 @@ router.post('/', requirePermission('order.create'), async (req, res, next) => {
     }
 
     const order = await db.query(
-      `INSERT INTO orders(company_id, client_id, warehouse_id, order_no, status, required_date, created_by)
-       VALUES($1, $2, $3, $4, 'draft', $5, $6)
+      `INSERT INTO orders(company_id, client_id, warehouse_id, order_no, status, required_date, remarks, created_by)
+       VALUES($1, $2, $3, $4, 'draft', $5, $6, $7)
        RETURNING *`,
-      [req.tenant.companyId, clientId, input.warehouseId, input.orderNo, input.requiredDate || null, req.user.sub],
+      [req.tenant.companyId, clientId, input.warehouseId, input.orderNo, input.requiredDate || null, input.remarks || null, req.user.sub],
     );
 
     for (const item of input.items) {
