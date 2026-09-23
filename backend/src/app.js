@@ -16,6 +16,7 @@ const userRoutes = require('./routes/user.routes');
 const warehouseRoutes = require('./routes/warehouse.routes');
 const productRoutes = require('./routes/product.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
+const stockTransferRoutes = require('./routes/stock_transfer.routes');
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/stock-transfers', stockTransferRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
