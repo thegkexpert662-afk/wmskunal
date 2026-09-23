@@ -126,7 +126,7 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
       );
       if (ok != true) return;
 
-      await api.create(
+      final created = await api.create(
         orderId: selected['order_id'].toString(),
         vehicleNo: vehicle.text.trim().isEmpty ? null : vehicle.text.trim(),
         transporterName: transporter.text.trim().isEmpty ? null : transporter.text.trim(),
@@ -134,7 +134,8 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
         driverMobile: mobile.text.trim().isEmpty ? null : mobile.text.trim(),
         lrNo: lr.text.trim().isEmpty ? null : lr.text.trim(),
       );
-      msg('Dispatch created and ready for gate-out.');
+      final invoice = created['_invoice'];
+      msg('Dispatch created. Invoice ' + (invoice is Map ? (invoice['invoice_no'] ?? '-').toString() : '-') + ' created and ready for gate-out.');
       await load();
     } catch (e) {
       msg(e.toString());
