@@ -52,6 +52,16 @@ class ReturnService {
         .toList();
   }
 
+  Future<List<Map<String, dynamic>>> sourceInvoices() async {
+    final b = _body(await http.get(
+      Uri.parse('$base/returns/source/invoices'),
+      headers: _headers(),
+    ));
+    return (b['invoices'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> detail(String id) async {
     final b = _body(await http.get(Uri.parse('$base/returns/$id'), headers: _headers()));
     return Map<String, dynamic>.from(b['return'] as Map);
