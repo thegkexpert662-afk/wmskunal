@@ -246,7 +246,7 @@ router.post('/tasks/:id/pick', requirePermission('picking.manage'), async(req,re
     const remaining=Number(orderItem.ordered_qty)-Number(orderItem.picked_qty);
     if(input.quantity>remaining){
       await db.query('ROLLBACK');
-      return res.status(400).json({error:{code:'PICK_QTY_EXCEEDS_REMAINING','message':'Pick quantity exceeds the remaining order quantity.'}});
+      return res.status(400).json({error:{code:'PICK_QTY_EXCEEDS_REMAINING',message:'Pick quantity exceeds the remaining order quantity.'}});
     }
 
     const location=await db.query(
