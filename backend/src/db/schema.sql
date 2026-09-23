@@ -501,6 +501,8 @@ ALTER TABLE dispatch
   ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+UPDATE dispatch SET status='ready' WHERE status='pending';
+
 ALTER TABLE dispatch DROP CONSTRAINT IF EXISTS dispatch_status_check;
 ALTER TABLE dispatch ADD CONSTRAINT dispatch_status_check
   CHECK (status IN ('ready','dispatched','in_transit','delivered','cancelled'));
