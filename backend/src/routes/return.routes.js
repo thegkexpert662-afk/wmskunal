@@ -431,9 +431,13 @@ router.post('/:id/qc', requirePermission('return.manage'), async (req,res,next)=
 
     const ids=input.items.map(x=>x.returnItemId);
     const rows=await db.query(
-      `SELECT ri.*,p.sku,p.name product_name
-       FROM return_items ri JOIN products p ON p.id=ri.product_id
-       WHERE ri.return_id=$1 AND ri.id=ANY($2::uuid[]) FOR UPDATE`,
+      `SELECT ri.*,p.sku,p.name product_name,
+              qcu.full_name qc_by_name,ru.full_name rejected_by_name
+       FROM return_items ri
+       JOIN products p ON p.id=ri.product_id
+       LEFT JOIN users qcu ON qcu.id=ri.qc_by
+       LEFT JOIN users ru ON ru.id=ri.rejected_by
+       WHERE ri.return_id=$1 AND ri.id=ANY($2::uuid[]) FOR UPDATE OF ri`,
       [current.id,ids],
     );
     if(rows.rowCount!==input.items.length){await db.query('ROLLBACK');return res.status(400).json({error:{code:'INVALID_QC_ITEMS',message:'One or more QC items are invalid.'}});}
