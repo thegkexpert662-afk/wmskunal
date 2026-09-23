@@ -46,7 +46,9 @@ class DispatchService {
     final r = await http.get(Uri.parse('$base/dispatch/$id'), headers: _headers());
     final b = jsonDecode(r.body);
     if (r.statusCode != 200) throw Exception(_message(b));
-    return Map<String, dynamic>.from(b['dispatch'] as Map);
+    final result = Map<String, dynamic>.from(b['dispatch'] as Map);
+    if (b['invoice'] is Map) result['_invoice'] = Map<String, dynamic>.from(b['invoice'] as Map);
+    return result;
   }
 
   Future<Map<String, dynamic>> create({
