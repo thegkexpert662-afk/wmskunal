@@ -7,6 +7,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireApprovedDevice } = require('../middleware/device');
 const { requirePermission } = require('../middleware/permission');
 const { requireRole } = require('../middleware/role');
+const { requireTenantContext } = require('../middleware/tenant');
 
 const userSelect = 'id, company_id, client_id, username, email, full_name, role, is_active, created_at, updated_at';
 
@@ -66,13 +67,14 @@ router.get(
   requireAuth,
   requireApprovedDevice,
   requireRole('admin'),
+  requireTenantContext,
   requirePermission('user.read'),
   async (req, res, next) => {
     try {
       const result = await pool.query(
         'SELECT ' + userSelect + ' FROM users WHERE company_id = $1 ' +
         "AND role IN ('admin', 'client') ORDER BY full_name ASC",
-        [req.user.companyId],
+        [req.tenant.companyId],
       );
       return res.json({ users: result.rows });
     } catch (error) {
@@ -94,7 +96,12 @@ router.post(
         return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You do not have permission to create users.' } });
       }
 
-      const companyId = isMaster ? input.companyId : req.user.companyId;
+      if (!isMaster) {
+        // Admin user creation is always tenant-scoped; never trust a companyId from the request body.
+        await requireTenantContext(req, res, () => {});
+        if (res.headersSent) return;
+      }
+      const companyId = isMaster ? input.companyId : req.tenant.companyId;
       if (!companyId) {
         return res.status(400).json({ error: { code: 'COMPANY_REQUIRED', message: 'Company is required.' } });
       }
@@ -150,8 +157,10 @@ router.patch(
       const params = [req.params.id];
       let scope = '';
       if (req.user.role === 'admin') {
+        await requireTenantContext(req, res, () => {});
+        if (res.headersSent) return;
         scope = ' AND company_id = $2';
-        params.push(req.user.companyId);
+        params.push(req.tenant.companyId);
       }
 
       const current = await pool.query(
@@ -215,8 +224,10 @@ router.patch(
       const params = [req.params.id];
       let scope = '';
       if (req.user.role === 'admin') {
+        await requireTenantContext(req, res, () => {});
+        if (res.headersSent) return;
         scope = ' AND company_id = $2';
-        params.push(req.user.companyId);
+        params.push(req.tenant.companyId);
       }
 
       const current = await pool.query(
