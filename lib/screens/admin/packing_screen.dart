@@ -144,7 +144,7 @@ class _PackingTaskDialogState extends State<PackingTaskDialog> {
   }
 
   Future<void> packItem() async {
-    final good=items.where((x)=>(x['remaining_qty'] as num?)?.toDouble() ?? 0 > 0).toList();
+    final good=items.where((x)=>((x['remaining_qty'] as num?)?.toDouble() ?? 0) > 0).toList();
     if(packages.isEmpty){snack('Create a package first.',true);return;}
     if(good.isEmpty){snack('All picked quantities are packed.',true);return;}
     final x=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>PackForm(items:good,packages:packages));
