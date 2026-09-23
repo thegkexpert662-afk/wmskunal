@@ -387,11 +387,65 @@ CREATE TABLE IF NOT EXISTS packing (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
   order_id UUID NOT NULL REFERENCES orders(id),
-  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  warehouse_id UUID NOT NULL REFERENCES warehouses(id),
+  packing_no VARCHAR(60) NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','in_progress','ready','cancelled')),
   packed_by UUID REFERENCES users(id),
+  total_packages INTEGER NOT NULL DEFAULT 0 CHECK (total_packages >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  UNIQUE (company_id, packing_no)
 );
+
+ALTER TABLE packing
+  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
+  ADD COLUMN IF NOT EXISTS packing_no VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS total_packages INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE packing DROP CONSTRAINT IF EXISTS packing_status_check;
+ALTER TABLE packing ADD CONSTRAINT packing_status_check
+  CHECK (status IN ('pending','in_progress','ready','cancelled'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_packing_active_order
+  ON packing(order_id) WHERE status IN ('pending','in_progress');
+
+CREATE TABLE IF NOT EXISTS packages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id),
+  packing_id UUID NOT NULL REFERENCES packing(id) ON DELETE CASCADE,
+  package_no VARCHAR(60) NOT NULL,
+  package_type VARCHAR(50) NOT NULL DEFAULT 'Box',
+  weight NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (weight >= 0),
+  length NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (length >= 0),
+  width NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (width >= 0),
+  height NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (height >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (packing_id, package_no)
+);
+
+CREATE TABLE IF NOT EXISTS packing_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  packing_id UUID NOT NULL REFERENCES packing(id) ON DELETE CASCADE,
+  package_id UUID NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+  order_item_id UUID NOT NULL REFERENCES order_items(id),
+  product_id UUID NOT NULL REFERENCES products(id),
+  quantity NUMERIC(18,4) NOT NULL CHECK (quantity > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_packing_company_created
+  ON packing(company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_packing_company_status
+  ON packing(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_packing_order
+  ON packing(order_id);
+CREATE INDEX IF NOT EXISTS idx_packages_packing
+  ON packages(packing_id);
+CREATE INDEX IF NOT EXISTS idx_packing_items_packing
+  ON packing_items(packing_id);
+CREATE INDEX IF NOT EXISTS idx_packing_items_order_item
+  ON packing_items(order_item_id);
 
 CREATE TABLE IF NOT EXISTS dispatch (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -718,6 +772,24 @@ WHERE p.permission_key IN (
   'profile.read',
   'profile.update'
 )
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator')
+) AS r(role)
+CROSS JOIN permissions p
+WHERE p.permission_key IN ('packing.read')
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator')
+) AS r(role)
+CROSS JOIN permissions p
+WHERE p.permission_key = 'packing.manage'
 ON CONFLICT (role, permission_id) DO NOTHING;
 
 INSERT INTO role_permissions (role, permission_id)
