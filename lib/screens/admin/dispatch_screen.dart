@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../common_widgets.dart';
+import '../../services/dispatch_service.dart';
 
 class AdminDispatchScreen extends StatefulWidget {
   const AdminDispatchScreen({super.key});
@@ -9,32 +10,19 @@ class AdminDispatchScreen extends StatefulWidget {
 }
 
 class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
-  final search = TextEditingController();
-  String warehouse = 'All';
+  final api = DispatchService.instance;
+  List<Map<String, dynamic>> dispatches = [];
+  List<Map<String, dynamic>> pending = [];
+  bool loading = true;
+  String? error;
   String status = 'All';
-
-  final dispatches = const [
-    ['DSP-7018', 'ORD-10284', 'ABC Industries', 'Main Warehouse', 'MH04AB1234', 'LR-90081', '16 Sep 2026', 'Ready', '₹ 2,45,600'],
-    ['DSP-7017', 'ORD-10283', 'Metro Retail', 'Ankleshwar WH', 'MH43CD2211', 'LR-90080', '16 Sep 2026', 'In Transit', '₹ 1,20,500'],
-    ['DSP-7016', 'ORD-10282', 'Prime Traders', 'Vilayat Warehouse', 'GJ16XY7821', 'LR-90079', '15 Sep 2026', 'Dispatched', '₹ 3,10,000'],
-    ['DSP-7015', 'ORD-10281', 'Global Parts', 'Main Warehouse', 'MH14EF5555', 'LR-90078', '15 Sep 2026', 'Delivered', '₹ 1,50,000'],
-    ['DSP-7014', 'ORD-10280', 'Shree Ram Suppliers', 'Delhi Warehouse', 'DL01GH6622', 'LR-90077', '14 Sep 2026', 'Pending', '₹ 1,75,250'],
-    ['DSP-7013', 'ORD-10279', 'Reliable Packaging', 'Ankleshwar WH', 'GJ05JK4433', 'LR-90076', '14 Sep 2026', 'Dispatched', '₹ 2,20,000'],
-    ['DSP-7012', 'ORD-10278', 'Om Plastics', 'Vilayat Warehouse', 'GJ16LM8822', 'LR-90075', '13 Sep 2026', 'Delivered', '₹ 85,600'],
-    ['DSP-7011', 'ORD-10277', 'JK Traders', 'Main Warehouse', 'MH12NP3399', 'LR-90074', '13 Sep 2026', 'Cancelled', '₹ 4,10,000'],
-  ];
-
-  List<List<String>> get filtered => dispatches.where((r) {
-    final q = search.text.toLowerCase().trim();
-    return (q.isEmpty || r.any((v) => v.toLowerCase().contains(q))) &&
-        (warehouse == 'All' || r[3] == warehouse) &&
-        (status == 'All' || r[7] == status);
-  }).toList();
+  final search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     search.addListener(() => setState(() {}));
+    load();
   }
 
   @override
@@ -43,128 +31,211 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
     super.dispose();
   }
 
+  Future<void> load() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final results = await Future.wait([
+        api.list(status: status == 'All' ? null : status),
+        api.pending(),
+      ]);
+      if (mounted) {
+        setState(() {
+          dispatches = results[0];
+          pending = results[1];
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  List<Map<String, dynamic>> get filtered {
+    final q = search.text.trim().toLowerCase();
+    if (q.isEmpty) return dispatches;
+    return dispatches.where((x) {
+      return [
+        x['dispatch_no'],
+        x['order_no'],
+        x['client_name'],
+        x['warehouse_name'],
+        x['vehicle_no'],
+        x['lr_no'],
+      ].any((v) => (v ?? '').toString().toLowerCase().contains(q));
+    }).toList();
+  }
+
+  void msg(String value) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+  }
+
+  Future<void> createDispatch() async {
+    if (pending.isEmpty) {
+      msg('No packed orders are ready for dispatch.');
+      return;
+    }
+
+    final selected = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _PendingDispatchDialog(orders: pending),
+    );
+    if (selected == null) return;
+
+    final vehicle = TextEditingController(text: selected['vehicle_no']?.toString() ?? '');
+    final transporter = TextEditingController(text: selected['transporter_name']?.toString() ?? '');
+    final driver = TextEditingController(text: selected['driver_name']?.toString() ?? '');
+    final mobile = TextEditingController(text: selected['driver_mobile']?.toString() ?? '');
+    final lr = TextEditingController();
+
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Create Dispatch • ${selected['order_no'] ?? '-'}'),
+          content: SizedBox(
+            width: 650,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(vehicle, 'Vehicle No.'),
+                const SizedBox(height: 10),
+                _field(transporter, 'Transporter'),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: _field(driver, 'Driver Name')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _field(mobile, 'Driver Mobile')),
+                ]),
+                const SizedBox(height: 10),
+                _field(lr, 'LR / AWB No.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create Dispatch'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+
+      await api.create(
+        orderId: selected['order_id'].toString(),
+        vehicleNo: vehicle.text.trim().isEmpty ? null : vehicle.text.trim(),
+        transporterName: transporter.text.trim().isEmpty ? null : transporter.text.trim(),
+        driverName: driver.text.trim().isEmpty ? null : driver.text.trim(),
+        driverMobile: mobile.text.trim().isEmpty ? null : mobile.text.trim(),
+        lrNo: lr.text.trim().isEmpty ? null : lr.text.trim(),
+      );
+      msg('Dispatch created and ready for gate-out.');
+      await load();
+    } catch (e) {
+      msg(e.toString());
+    } finally {
+      vehicle.dispose();
+      transporter.dispose();
+      driver.dispose();
+      mobile.dispose();
+      lr.dispose();
+    }
+  }
+
+  Future<void> open(Map<String, dynamic> row) async {
+    try {
+      final detail = await api.detail(row['id'].toString());
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (_) => _DispatchDetailDialog(detail: detail, api: api),
+      );
+      await load();
+    } catch (e) {
+      msg(e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 1100;
-
     return ScreenFrame(
       title: 'Outward / Dispatch',
-      subtitle: 'Manage orders, dispatch confirmation, transporter and gate-out workflow.',
+      subtitle: 'Packed orders → dispatch creation → gate-out → transit → delivery.',
       actions: [
         OutlinedButton.icon(
-          onPressed: () => _message('Dispatch report exported successfully.'),
-          icon: const Icon(Icons.download_outlined),
-          label: const Text('Export'),
+          onPressed: load,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Refresh'),
         ),
         const SizedBox(width: 8),
         FilledButton.icon(
-          onPressed: () => _message('Create Dispatch opened.'),
+          onPressed: createDispatch,
           icon: const Icon(Icons.local_shipping_outlined),
           label: const Text('Create Dispatch'),
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _stats(compact),
-          const SizedBox(height: 16),
-          if (compact) ...[
-            _table(),
-            const SizedBox(height: 14),
-            _details(),
-          ] else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 8, child: _table()),
-                const SizedBox(width: 14),
-                Expanded(flex: 3, child: _details()),
-              ],
-            ),
-        ],
-      ),
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(error!, style: const TextStyle(color: Colors.red)),
+                      OutlinedButton(onPressed: load, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _stats(),
+                    const SizedBox(height: 14),
+                    _table(),
+                  ],
+                ),
     );
   }
 
-  Widget _stats(bool compact) {
-    final data = [
-      ['Total Dispatches', '125', 'All Time', Icons.local_shipping_outlined, const Color(0xFF1769E8), const Color(0xFFEAF2FF)],
-      ['Ready to Dispatch', '18', 'Today', Icons.inventory_2_outlined, const Color(0xFF16A05D), const Color(0xFFE7F9EF)],
-      ['In Transit', '42', 'Currently', Icons.route_outlined, const Color(0xFF7046D8), const Color(0xFFF0EAFF)],
-      ['Delivered', '96', 'This Month', Icons.check_circle_outline, const Color(0xFF16A05D), const Color(0xFFE7F9EF)],
-      ['Total Dispatch Value', '₹ 48,75,650', 'All Dispatches', Icons.currency_rupee_rounded, const Color(0xFFE28C00), const Color(0xFFFFF3DE)],
-    ];
-
-    final cards = data
-        .map((d) => _statCard(
-              d[0] as String,
-              d[1] as String,
-              d[2] as String,
-              d[3] as IconData,
-              d[4] as Color,
-              d[5] as Color,
-            ))
-        .toList();
-
-    if (compact) {
-      return GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 2.25,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: cards,
-      );
-    }
-
-    return Row(
+  Widget _stats() {
+    int count(String s) => dispatches.where((x) => x['status'] == s).length;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          Expanded(child: cards[i]),
-          if (i < cards.length - 1) const SizedBox(width: 12),
-        ],
+        _stat('Ready', count('ready'), Icons.inventory_2_outlined),
+        _stat('Dispatched', count('dispatched'), Icons.output_outlined),
+        _stat('In Transit', count('in_transit'), Icons.route_outlined),
+        _stat('Delivered', count('delivered'), Icons.check_circle_outline),
+        _stat('Pending Packed Orders', pending.length, Icons.pending_actions),
       ],
     );
   }
 
-  Widget _statCard(
-    String title,
-    String value,
-    String sub,
-    IconData icon,
-    Color color,
-    Color background,
-  ) {
+  Widget _stat(String title, int value, IconData icon) {
     return Container(
+      width: 190,
       padding: const EdgeInsets.all(14),
-      decoration: _box(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE1E8F1)),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, color: color, size: 27),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _title(11)),
-                const SizedBox(height: 3),
-                FittedBox(
-                  alignment: Alignment.centerLeft,
-                  child: Text(value, style: _title(22)),
-                ),
-                Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, color: Color(0xFF7A889A))),
-              ],
-            ),
+          Icon(icon, color: const Color(0xFF1769D5)),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+              Text(value.toString(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            ],
           ),
         ],
       ),
@@ -173,9 +244,12 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
 
   Widget _table() {
     return Container(
-      decoration: _box(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE1E8F1)),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.all(11),
@@ -184,102 +258,96 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
               runSpacing: 8,
               children: [
                 SizedBox(
-                  width: 300,
+                  width: 320,
                   height: 40,
                   child: TextField(
                     controller: search,
-                    decoration: InputDecoration(
-                      hintText: 'Search by dispatch, order, client or vehicle...',
-                      hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF8491A2)),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFDCE4EE)),
-                      ),
+                    decoration: const InputDecoration(
+                      hintText: 'Search dispatch, order, client, vehicle...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ),
-                _dropdown('Warehouse', warehouse, ['All', 'Main Warehouse', 'Ankleshwar WH', 'Vilayat Warehouse', 'Delhi Warehouse'], (v) => setState(() => warehouse = v!)),
-                _dropdown('Status', status, ['All', 'Ready', 'In Transit', 'Dispatched', 'Delivered', 'Pending', 'Cancelled'], (v) => setState(() => status = v!)),
-                OutlinedButton.icon(
-                  onPressed: () => setState(() {}),
-                  icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                  label: const Text('Filter'),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11)),
+                SizedBox(
+                  width: 170,
+                  height: 40,
+                  child: DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      'All',
+                      'ready',
+                      'dispatched',
+                      'in_transit',
+                      'delivered',
+                      'cancelled',
+                    ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                    onChanged: (v) async {
+                      if (v == null) return;
+                      setState(() => status = v);
+                      await load();
+                    },
+                  ),
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
-          HorizontalTableScroller(
-            child: DataTable(
-              headingTextStyle: const TextStyle(
-                color: Color(0xFF43546A),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-              dataTextStyle: const TextStyle(
-                color: Color(0xFF26384F),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              headingRowHeight: 48,
-              dataRowMinHeight: 52,
-              dataRowMaxHeight: 58,
-              columnSpacing: 26,
-              headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
-              columns: const [
-                DataColumn(columnWidth: const FixedColumnWidth(50), label: Text('#')),
-                DataColumn(columnWidth: const FixedColumnWidth(115), label: Text('Dispatch ID')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Order ID')),
-                DataColumn(columnWidth: const FixedColumnWidth(160), label: Text('Client')),
-                DataColumn(columnWidth: const FixedColumnWidth(140), label: Text('Warehouse')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Vehicle')),
-                DataColumn(columnWidth: const FixedColumnWidth(100), label: Text('LR No.')),
-                DataColumn(columnWidth: const FixedColumnWidth(95), label: Text('Date')),
-                DataColumn(columnWidth: const FixedColumnWidth(105), label: Text('Status')),
-                DataColumn(columnWidth: const FixedColumnWidth(110), label: Text('Value')),
-                DataColumn(columnWidth: const FixedColumnWidth(90), label: Text('Actions')),
-              ],
-              rows: List.generate(filtered.length, (i) {
-                final r = filtered[i];
-                return DataRow(cells: [
-                  DataCell(Text('${i + 1}')),
-                  DataCell(Text(r[0], style: const TextStyle(fontWeight: FontWeight.w700))),
-                  DataCell(Text(r[1])),
-                  DataCell(Text(r[2])),
-                  DataCell(Text(r[3])),
-                  DataCell(Text(r[4])),
-                  DataCell(Text(r[5])),
-                  DataCell(Text(r[6])),
-                  DataCell(_status(r[7])),
-                  DataCell(Text(r[8])),
-                  DataCell(Row(children: [
-                    IconButton(onPressed: () => _message('Viewing ${r[0]}'), icon: const Icon(Icons.visibility_outlined, color: Color(0xFF1769E8), size: 17)),
-                    IconButton(onPressed: () => _message('Editing ${r[0]}'), icon: const Icon(Icons.edit_outlined, color: Color(0xFF1769E8), size: 17)),
-                  ])),
-                ]);
-              }),
-            ),
-          ),
+          filtered.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(35),
+                  child: Text('No dispatch records found.'),
+                )
+              : HorizontalTableScroller(
+                  child: DataTable(
+                    headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
+                    columns: const [
+                      DataColumn(label: Text('Dispatch')),
+                      DataColumn(label: Text('Order')),
+                      DataColumn(label: Text('Client')),
+                      DataColumn(label: Text('Warehouse')),
+                      DataColumn(label: Text('Vehicle')),
+                      DataColumn(label: Text('LR / AWB')),
+                      DataColumn(label: Text('Packages')),
+                      DataColumn(label: Text('Weight KG')),
+                      DataColumn(label: Text('Status')),
+                      DataColumn(label: Text('Action')),
+                    ],
+                    rows: filtered.map((x) {
+                      return DataRow(cells: [
+                        DataCell(Text((x['dispatch_no'] ?? '-').toString())),
+                        DataCell(Text((x['order_no'] ?? '-').toString())),
+                        DataCell(Text((x['client_name'] ?? '-').toString())),
+                        DataCell(Text((x['warehouse_name'] ?? '-').toString())),
+                        DataCell(Text((x['vehicle_no'] ?? '-').toString())),
+                        DataCell(Text((x['lr_no'] ?? '-').toString())),
+                        DataCell(Text((x['total_packages'] ?? 0).toString())),
+                        DataCell(Text((x['total_weight'] ?? 0).toString())),
+                        DataCell(_status((x['status'] ?? '-').toString())),
+                        DataCell(
+                          IconButton(
+                            tooltip: 'Open Dispatch',
+                            onPressed: () => open(x),
+                            icon: const Icon(Icons.visibility_outlined),
+                          ),
+                        ),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Text('Showing 1 to ${filtered.length} of 125 entries', style: const TextStyle(fontSize: 10, color: Color(0xFF748196))),
-                const Spacer(),
-                _page('Previous'),
-                _page('1', active: true),
-                _page('2'),
-                _page('3'),
-                _page('4'),
-                _page('5'),
-                _page('…'),
-                _page('13'),
-                _page('Next'),
-              ],
+            padding: const EdgeInsets.all(10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Showing ${filtered.length} dispatch record(s)',
+                style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+              ),
             ),
           ),
         ],
@@ -287,107 +355,195 @@ class _AdminDispatchScreenState extends State<AdminDispatchScreen> {
     );
   }
 
-  Widget _details() {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _box(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [Text('Dispatch Details', style: _title(14)), const Spacer(), const Icon(Icons.close, size: 18, color: Color(0xFF7D899A))]),
-          const SizedBox(height: 14),
-          Row(children: [
-            Container(width: 45, height: 45, decoration: BoxDecoration(color: const Color(0xFFEAF2FF), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.local_shipping_outlined, color: Color(0xFF1769E8), size: 25)),
-            const SizedBox(width: 10),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('DSP-7018', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF162B46))), SizedBox(height: 3), Text('ORD-10284', style: TextStyle(fontSize: 10, color: Color(0xFF748196)))])),
-            _status('Ready'),
-          ]),
-          const SizedBox(height: 14),
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-          _detail('Client', 'ABC Industries', Icons.person_outline),
-          _detail('Warehouse', 'Main Warehouse', Icons.warehouse_outlined),
-          _detail('Vehicle No.', 'MH04AB1234', Icons.local_shipping_outlined),
-          _detail('Transporter', 'ABC Logistics', Icons.business_outlined),
-          _detail('LR No.', 'LR-90081', Icons.receipt_long_outlined),
-          _detail('Dispatch Date', '16 Sep 2026', Icons.calendar_today_outlined),
-          _detail('Total Items', '8', Icons.inventory_2_outlined),
-          _detail('Total Quantity', '120', Icons.numbers_outlined),
-          _detail('Total Value', '₹ 2,45,600', Icons.currency_rupee_rounded),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(color: const Color(0xFFF7FAFD), borderRadius: BorderRadius.circular(9)),
-            child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Dispatch Progress', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF26384F))), SizedBox(height: 9), LinearProgressIndicator(value: .72, minHeight: 7, borderRadius: BorderRadius.all(Radius.circular(8))), SizedBox(height: 6), Text('Ready for gate-out', style: TextStyle(fontSize: 9, color: Color(0xFF748196)))]),
+  Widget _status(String value) {
+    return Chip(
+      label: Text(
+        value.replaceAll('_', ' ').toUpperCase(),
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _field(TextEditingController controller, String label) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+}
+
+class _PendingDispatchDialog extends StatelessWidget {
+  final List<Map<String, dynamic>> orders;
+
+  const _PendingDispatchDialog({required this.orders});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Packed Orders Ready for Dispatch'),
+      content: SizedBox(
+        width: 800,
+        height: 420,
+        child: ListView.builder(
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            final x = orders[index];
+            return ListTile(
+              leading: const Icon(Icons.inventory_2_outlined),
+              title: Text('${x['order_no'] ?? '-'} • ${x['client_name'] ?? '-'}'),
+              subtitle: Text(
+                '${x['warehouse_name'] ?? '-'} • '
+                'Packages ${x['total_packages'] ?? 0} • '
+                'Weight ${x['total_weight'] ?? 0} KG',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.pop(context, x),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DispatchDetailDialog extends StatefulWidget {
+  final Map<String, dynamic> detail;
+  final DispatchService api;
+
+  const _DispatchDetailDialog({
+    required this.detail,
+    required this.api,
+  });
+
+  @override
+  State<_DispatchDetailDialog> createState() => _DispatchDetailDialogState();
+}
+
+class _DispatchDetailDialogState extends State<_DispatchDetailDialog> {
+  bool busy = false;
+
+  String text(dynamic value) {
+    final s = value?.toString().trim() ?? '';
+    return s.isEmpty || s == 'null' ? '-' : s;
+  }
+
+  Future<void> action(Future<Map<String, dynamic>> Function() call) async {
+    try {
+      setState(() => busy = true);
+      await call();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.detail;
+    final items = (d['items'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final status = text(d['status']);
+
+    return AlertDialog(
+      title: Text('${text(d['dispatch_no'])} • ${text(d['order_no'])}'),
+      content: SizedBox(
+        width: 900,
+        height: 620,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(d),
+              const SizedBox(height: 14),
+              const Text('Dispatch Items', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              HorizontalTableScroller(
+                child: DataTable(
+                  headingRowColor: const WidgetStatePropertyAll(Color(0xFFF4F8FC)),
+                  columns: const [
+                    DataColumn(label: Text('SKU')),
+                    DataColumn(label: Text('Product')),
+                    DataColumn(label: Text('Qty')),
+                    DataColumn(label: Text('UOM')),
+                  ],
+                  rows: items.map((x) => DataRow(cells: [
+                    DataCell(Text(text(x['sku']))),
+                    DataCell(Text(text(x['product_name']))),
+                    DataCell(Text(text(x['quantity']))),
+                    DataCell(Text(text(x['uom']))),
+                  ])).toList(),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: OutlinedButton.icon(onPressed: () => _message('Gate-out opened.'), icon: const Icon(Icons.output_outlined, size: 16), label: const Text('Gate Out'))),
-            const SizedBox(width: 8),
-            Expanded(child: FilledButton.icon(onPressed: () => _message('Invoice opened.'), icon: const Icon(Icons.receipt_long_outlined, size: 16), label: const Text('Invoice'))),
-          ]),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: busy ? null : () => Navigator.pop(context), child: const Text('Close')),
+        if (status == 'ready')
+          FilledButton.icon(
+            onPressed: busy ? null : () => action(() => widget.api.gateOut(d['id'].toString())),
+            icon: const Icon(Icons.output_outlined),
+            label: const Text('Gate Out / Dispatch'),
+          ),
+        if (status == 'dispatched')
+          FilledButton.tonal(
+            onPressed: busy ? null : () => action(() => widget.api.updateStatus(d['id'].toString(), 'in_transit')),
+            child: const Text('Mark In Transit'),
+          ),
+        if (status == 'in_transit')
+          FilledButton(
+            onPressed: busy ? null : () => action(() => widget.api.updateStatus(d['id'].toString(), 'delivered')),
+            child: const Text('Mark Delivered'),
+          ),
+      ],
+    );
+  }
+
+  Widget _header(Map<String, dynamic> d) {
+    Widget row(String label, dynamic value) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(width: 150, child: Text(label, style: const TextStyle(color: Colors.black54))),
+            Expanded(child: Text(text(value), style: const TextStyle(fontWeight: FontWeight.w700))),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFD),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0E7EF)),
+      ),
+      child: Column(
+        children: [
+          row('Client', d['client_name']),
+          row('Warehouse', d['warehouse_name']),
+          row('Vehicle No.', d['vehicle_no']),
+          row('Transporter', d['transporter_name']),
+          row('Driver', d['driver_name']),
+          row('Driver Mobile', d['driver_mobile']),
+          row('LR / AWB', d['lr_no']),
+          row('Packages', d['total_packages']),
+          row('Total Weight KG', d['total_weight']),
+          row('Ship To', d['ship_to_name']),
+          row('Ship To Address', d['ship_to_address']),
         ],
       ),
     );
   }
-
-  Widget _detail(String label, String value, IconData icon) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(children: [
-          Icon(icon, size: 16, color: const Color(0xFF65758A)),
-          const SizedBox(width: 9),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF68778B)))),
-          Flexible(child: Text(value, textAlign: TextAlign.right, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF26384F)))),
-        ]),
-      );
-
-  Widget _dropdown(String label, String value, List<String> values, ValueChanged<String?> onChanged) => Container(
-        height: 40,
-        width: 145,
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        decoration: BoxDecoration(border: Border.all(color: const Color(0xFFDCE4EE)), borderRadius: BorderRadius.circular(8)),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: value,
-            isExpanded: true,
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-            style: const TextStyle(fontSize: 10, color: Color(0xFF42546A), fontWeight: FontWeight.w600),
-            items: values.map((v) => DropdownMenuItem(value: v, child: Text(v == 'All' ? '$label: All' : v, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
-            onChanged: onChanged,
-          ),
-        ),
-      );
-
-  Widget _status(String value) {
-    final Color text;
-    final Color background;
-    switch (value) {
-      case 'Delivered':
-        text = const Color(0xFF14894E); background = const Color(0xFFE4F7EC); break;
-      case 'Ready':
-        text = const Color(0xFF1769E8); background = const Color(0xFFEAF2FF); break;
-      case 'In Transit':
-      case 'Dispatched':
-        text = const Color(0xFF7046D8); background = const Color(0xFFF0EAFF); break;
-      case 'Pending':
-        text = const Color(0xFFE28C00); background = const Color(0xFFFFF0D8); break;
-      default:
-        text = const Color(0xFFD92F4B); background = const Color(0xFFFFE5EA);
-    }
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(6)), child: Text(value, style: TextStyle(color: text, fontSize: 8, fontWeight: FontWeight.w800)));
-  }
-
-  Widget _page(String text, {bool active = false}) => Container(
-        margin: const EdgeInsets.only(left: 4),
-        height: 30,
-        constraints: const BoxConstraints(minWidth: 30),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(color: active ? const Color(0xFF1769E8) : Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: active ? const Color(0xFF1769E8) : const Color(0xFFDDE5EF))),
-        child: Text(text, style: TextStyle(color: active ? Colors.white : const Color(0xFF63738A), fontSize: 9, fontWeight: FontWeight.w700)),
-      );
-
-  BoxDecoration _box() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE1E8F1)), boxShadow: const [BoxShadow(color: Color(0x0A18304F), blurRadius: 12, offset: Offset(0, 4))]);
-  TextStyle _title(double size) => TextStyle(color: const Color(0xFF162B46), fontSize: size, fontWeight: FontWeight.w800);
-  void _message(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }
