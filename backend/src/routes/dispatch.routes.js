@@ -224,15 +224,61 @@ router.post('/', requirePermission('dispatch.manage'), async (req, res, next) =>
       );
     }
 
+    // Every new dispatch gets a permanent invoice record in the same transaction.
+    const invoiceItems = await db.query(
+      `SELECT oi.product_id,oi.ordered_qty quantity,p.name product_name,p.hsn_code,p.uom,p.rate
+       FROM order_items oi
+       JOIN products p ON p.id=oi.product_id
+       WHERE oi.order_id=$1
+       ORDER BY p.name`,
+      [input.orderId],
+    );
+    let taxableAmount = 0;
+    for (const item of invoiceItems.rows) {
+      taxableAmount += Number(item.quantity || 0) * Number(item.rate || 0);
+    }
+    taxableAmount = Number(taxableAmount.toFixed(2));
+    const invoiceNo = `INV-${new Date().getFullYear()}-${Date.now().toString().slice(-8)}`;
+    const invoiceResult = await db.query(
+      `INSERT INTO invoices(
+         company_id,client_id,order_id,dispatch_id,invoice_no,invoice_date,status,
+         taxable_amount,total_amount,
+         company_name_snapshot,company_logo_url_snapshot,company_address_snapshot,company_gstin_snapshot,company_email_snapshot,company_mobile_snapshot,
+         client_name_snapshot,client_address_snapshot,client_gstin_snapshot,client_email_snapshot,client_mobile_snapshot,
+         created_by,updated_at
+       )
+       SELECT $1,o.client_id,o.id,$2,$3,CURRENT_DATE,'issued',$4,$4,
+              co.name,co.logo_url,co.address,co.gstin,co.email,co.mobile,
+              cl.name,cl.address,cl.gstin,cl.email,cl.mobile,
+              $5,NOW()
+       FROM orders o
+       JOIN companies co ON co.id=o.company_id
+       JOIN clients cl ON cl.id=o.client_id
+       WHERE o.id=$6 AND o.company_id=$1
+       RETURNING *`,
+      [req.tenant.companyId,dispatch.rows[0].id,invoiceNo,taxableAmount,req.user.sub,input.orderId],
+    );
+    const invoice = invoiceResult.rows[0];
+
+    for (const item of invoiceItems.rows) {
+      const lineTotal = Number(item.quantity || 0) * Number(item.rate || 0);
+      await db.query(
+        `INSERT INTO invoice_items(
+          invoice_id,product_id,description,hsn_code,uom,quantity,rate,taxable_amount,line_total
+        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8)`,
+        [invoice.id,item.product_id,item.product_name,item.hsn_code,item.uom,item.quantity,item.rate || 0,lineTotal],
+      );
+    }
+
     await db.query(
       `INSERT INTO audit_logs(company_id,user_id,action,entity_type,entity_id,ip_address,user_agent,metadata)
        VALUES($1,$2,'DISPATCH_CREATED','dispatch',$3,$4,$5,$6::jsonb)`,
       [req.tenant.companyId,req.user.sub,dispatch.rows[0].id,req.ip || null,req.get('user-agent') || null,
-        JSON.stringify({orderId:input.orderId,orderNo:order.order_no,warehouseId:order.warehouse_id})],
+        JSON.stringify({orderId:input.orderId,orderNo:order.order_no,warehouseId:order.warehouse_id,invoiceId:invoice.id,invoiceNo:invoice.invoice_no})],
     );
 
     await db.query('COMMIT');
-    res.status(201).json({ dispatch: dispatch.rows[0] });
+    res.status(201).json({ dispatch: dispatch.rows[0], invoice });
   } catch (e) {
     await db.query('ROLLBACK').catch(() => {});
     if (e.name === 'ZodError') {
