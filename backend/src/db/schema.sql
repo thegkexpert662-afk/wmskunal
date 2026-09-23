@@ -23,11 +23,16 @@ CREATE INDEX IF NOT EXISTS idx_companies_active ON companies(is_active);
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id),
+  user_code VARCHAR(40) UNIQUE DEFAULT ('USR-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  employee_code VARCHAR(60),
   username VARCHAR(100) NOT NULL UNIQUE,
   email VARCHAR(200) UNIQUE,
   password_hash TEXT NOT NULL,
   full_name VARCHAR(150) NOT NULL,
-  role VARCHAR(30) NOT NULL CHECK (role IN ('master_admin','admin','client')),
+  phone VARCHAR(30),
+  department VARCHAR(100),
+  designation VARCHAR(120),
+  role VARCHAR(30) NOT NULL CHECK (role IN ('master_admin','admin','client','warehouse_manager','warehouse_supervisor','warehouse_operator','warehouse_qc','gate_operator','inventory_user','dispatch_user')),
   client_id UUID,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -86,6 +91,17 @@ CREATE TABLE IF NOT EXISTS clients (
 );
 
 ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS user_code VARCHAR(40) UNIQUE DEFAULT ('USR-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  ADD COLUMN IF NOT EXISTS employee_code VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS phone VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS department VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS designation VARCHAR(120);
+
+UPDATE users SET user_code = 'USR-' || upper(substr(replace(id::text, '-', ''), 1, 10)) WHERE user_code IS NULL;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('master_admin','admin','client','warehouse_manager','warehouse_supervisor','warehouse_operator','warehouse_qc','gate_operator','inventory_user','dispatch_user'));
+
+ALTER TABLE users
   DROP CONSTRAINT IF EXISTS users_client_id_fkey;
 
 ALTER TABLE users
@@ -132,6 +148,18 @@ CREATE TABLE IF NOT EXISTS warehouse_locations (
 ALTER TABLE warehouse_locations
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE TABLE IF NOT EXISTS user_warehouses (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  warehouse_id UUID NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  assigned_by UUID REFERENCES users(id),
+  PRIMARY KEY (user_id, warehouse_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_warehouses_warehouse ON user_warehouses(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_users_company_role ON users(company_id, role);
 
 CREATE TABLE IF NOT EXISTS grns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -624,6 +652,38 @@ WHERE p.permission_key IN (
   'profile.read',
   'profile.update'
 )
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator'),
+ ('warehouse_qc'),('gate_operator'),('inventory_user'),('dispatch_user')
+) AS r(role)
+CROSS JOIN permissions p
+WHERE p.permission_key IN (
+ 'profile.read','profile.update','warehouse.read','product.read','inbound.read',
+ 'grn.read','qc.read','putaway.read','inventory.read','order.read','picking.read',
+ 'packing.read','dispatch.read','return.read','report.read'
+)
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator'),
+ ('warehouse_qc'),('gate_operator'),('inventory_user'),('dispatch_user')
+) AS r(role)
+CROSS JOIN permissions p
+WHERE p.permission_key = CASE r.role
+ WHEN 'warehouse_manager' THEN 'warehouse.manage'
+ WHEN 'warehouse_supervisor' THEN 'inbound.create'
+ WHEN 'warehouse_operator' THEN 'putaway.manage'
+ WHEN 'warehouse_qc' THEN 'qc.manage'
+ WHEN 'gate_operator' THEN 'inbound.create'
+ WHEN 'inventory_user' THEN 'inventory.manage'
+ WHEN 'dispatch_user' THEN 'dispatch.manage'
+END
 ON CONFLICT (role, permission_id) DO NOTHING;
 
 INSERT INTO role_permissions (role, permission_id)
