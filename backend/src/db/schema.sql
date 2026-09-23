@@ -448,13 +448,44 @@ CREATE INDEX IF NOT EXISTS idx_inventory_txn_source_destination
 INSERT INTO permissions (permission_key, description) VALUES
   ('device.read', 'View device authentication records'),
   ('device.approve', 'Approve, reject, or revoke devices'),
-  ('grn.read', 'View GRNs'),
-  ('grn.create', 'Create GRNs'),
   ('company.read', 'View company records'),
   ('user.read', 'View users and roles'),
   ('user.manage', 'Create or manage users and roles'),
   ('system.manage', 'Manage technical system settings'),
-  ('security.audit.read', 'View security and audit records')
+  ('security.audit.read', 'View security and audit records'),
+
+  ('grn.read', 'View GRNs'),
+  ('grn.create', 'Create GRNs'),
+  ('qc.read', 'View quality control records'),
+  ('qc.manage', 'Process quality control records'),
+  ('putaway.read', 'View putaway tasks'),
+  ('putaway.manage', 'Process putaway tasks'),
+  ('product.read', 'View products'),
+  ('product.manage', 'Create or manage products'),
+  ('warehouse.read', 'View warehouses and locations'),
+  ('warehouse.manage', 'Create or manage warehouses and locations'),
+  ('inventory.read', 'View inventory'),
+  ('inventory.manage', 'Adjust or manage inventory'),
+  ('order.read', 'View orders'),
+  ('order.create', 'Create orders'),
+  ('order.manage', 'Manage order status'),
+  ('picking.read', 'View picking tasks'),
+  ('picking.manage', 'Process picking tasks'),
+  ('packing.read', 'View packing tasks'),
+  ('packing.manage', 'Process packing tasks'),
+  ('dispatch.read', 'View dispatch records'),
+  ('dispatch.manage', 'Process dispatch records'),
+  ('return.read', 'View returns'),
+  ('return.create', 'Create return requests'),
+  ('return.manage', 'Manage returns'),
+  ('invoice.read', 'View invoices'),
+  ('invoice.create', 'Create invoices'),
+  ('invoice.manage', 'Manage invoices'),
+  ('report.read', 'View operational reports'),
+  ('client.read', 'View clients'),
+  ('client.manage', 'Manage clients'),
+  ('profile.read', 'View own profile'),
+  ('profile.update', 'Update own profile')
 ON CONFLICT (permission_key) DO UPDATE
 SET description = EXCLUDED.description;
 
@@ -475,6 +506,57 @@ ON CONFLICT (role, permission_id) DO NOTHING;
 INSERT INTO role_permissions (role, permission_id)
 SELECT 'admin', p.id
 FROM permissions p
-WHERE p.permission_key IN ('grn.read', 'grn.create')
+WHERE p.permission_key IN (
+  'company.read',
+  'user.read',
+  'user.manage',
+  'grn.read',
+  'grn.create',
+  'qc.read',
+  'qc.manage',
+  'putaway.read',
+  'putaway.manage',
+  'product.read',
+  'product.manage',
+  'warehouse.read',
+  'warehouse.manage',
+  'inventory.read',
+  'inventory.manage',
+  'order.read',
+  'order.create',
+  'order.manage',
+  'picking.read',
+  'picking.manage',
+  'packing.read',
+  'packing.manage',
+  'dispatch.read',
+  'dispatch.manage',
+  'return.read',
+  'return.manage',
+  'invoice.read',
+  'invoice.create',
+  'invoice.manage',
+  'report.read',
+  'client.read',
+  'client.manage',
+  'profile.read',
+  'profile.update'
+)
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT 'client', p.id
+FROM permissions p
+WHERE p.permission_key IN (
+  'product.read',
+  'order.read',
+  'order.create',
+  'dispatch.read',
+  'return.read',
+  'return.create',
+  'invoice.read',
+  'profile.read',
+  'profile.update'
+)
 ON CONFLICT (role, permission_id) DO NOTHING;
 
