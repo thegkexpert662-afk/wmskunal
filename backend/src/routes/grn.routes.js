@@ -5,9 +5,9 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireApprovedDevice } = require('../middleware/device');
 const { requireCompanyModule } = require('../middleware/company');
-const { requireRole } = require('../middleware/role');
 const { requirePermission } = require('../middleware/permission');
 const { requireTenantContext } = require('../middleware/tenant');
+const { getAssignedWarehouseIds } = require('../middleware/warehouse_access');
 
 const grnSchema = z.object({
   grnNo: z.string().trim().min(1).max(60),
@@ -21,19 +21,23 @@ const grnSchema = z.object({
   })).min(1),
 });
 
-router.use(requireAuth, requireApprovedDevice, requireTenantContext, requireRole('admin'), requireCompanyModule('grn'));
+router.use(requireAuth, requireApprovedDevice, requireTenantContext, requireCompanyModule('grn'));
 
 router.get('/', requirePermission('grn.read'), async (req, res, next) => {
   try {
+    const assigned = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    const params = [req.tenant.companyId];
+    let warehouseScope = '';
+    if (assigned.length) { params.push(assigned); warehouseScope = ' AND g.warehouse_id = ANY($2::uuid[])'; }
     const result = await pool.query(
       `SELECT g.id, g.grn_no, g.supplier_name, g.invoice_no, g.status,
               g.received_at, g.created_at, w.name AS warehouse
        FROM grns g
        LEFT JOIN warehouses w ON w.id = g.warehouse_id
-       WHERE g.company_id = $1
+       WHERE g.company_id = $1 ${warehouseScope}
        ORDER BY g.created_at DESC
        LIMIT 100`,
-      [req.tenant.companyId],
+      params,
     );
     return res.json({ data: result.rows });
   } catch (error) {
@@ -78,6 +82,10 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
 
   try {
     const input = grnSchema.parse(req.body);
+    const assigned = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    if (assigned.length && (!input.warehouseId || !assigned.includes(input.warehouseId))) {
+      return res.status(403).json({ error: { code: 'WAREHOUSE_ACCESS_DENIED', message: 'You must be assigned to the selected warehouse.' } });
+    }
 
     await client.query('BEGIN');
 
