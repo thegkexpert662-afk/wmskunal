@@ -59,6 +59,7 @@ router.get('/pending', requirePermission('picking.read'), async (req,res,next)=>
        FROM orders o
        JOIN warehouses w ON w.id=o.warehouse_id
        JOIN clients c ON c.id=o.client_id
+       JOIN companies co ON co.id=o.company_id
        JOIN order_items oi ON oi.order_id=o.id
        WHERE o.company_id=$1
          AND o.status IN ('allocated','picking')
@@ -109,7 +110,19 @@ router.get('/tasks/:id', requirePermission('picking.read'), async (req,res,next)
     const task=await pool.query(
       `SELECT pt.*,o.order_no,o.status order_status,o.required_date,o.remarks,
               o.warehouse_id,w.code warehouse_code,w.name warehouse_name,
-              c.client_code,c.name client_name,u.full_name picker_name
+              c.client_code,c.name client_name,c.gstin client_gstin,c.address client_address,
+              co.company_code,o.truck_type,o.transporter_name,o.vehicle_no,o.driver_name,o.driver_mobile,
+              o.shipment_no,o.shipment_date,o.delivery_no,o.delivery_date,
+              COALESCE(o.sold_by_name,co.name) sold_by_name,
+              COALESCE(o.sold_by_address,co.address) sold_by_address,
+              COALESCE(o.sold_by_gstin,co.gstin) sold_by_gstin,
+              COALESCE(o.sold_to_name,c.name) sold_to_name,
+              COALESCE(o.sold_to_address,c.address) sold_to_address,
+              COALESCE(o.sold_to_gstin,c.gstin) sold_to_gstin,
+              COALESCE(o.ship_to_name,c.name) ship_to_name,
+              COALESCE(o.ship_to_address,c.address) ship_to_address,
+              COALESCE(o.ship_to_gstin,c.gstin) ship_to_gstin,
+              u.full_name picker_name
        FROM picking_tasks pt
        JOIN orders o ON o.id=pt.order_id
        JOIN warehouses w ON w.id=o.warehouse_id
