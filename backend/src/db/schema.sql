@@ -324,7 +324,25 @@ CREATE TABLE IF NOT EXISTS orders (
 
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
-  ADD COLUMN IF NOT EXISTS remarks TEXT;
+  ADD COLUMN IF NOT EXISTS remarks TEXT,
+  ADD COLUMN IF NOT EXISTS truck_type VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS transporter_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS vehicle_no VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS driver_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS driver_mobile VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS shipment_no VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS shipment_date DATE,
+  ADD COLUMN IF NOT EXISTS delivery_no VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS delivery_date DATE,
+  ADD COLUMN IF NOT EXISTS sold_by_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS sold_by_address TEXT,
+  ADD COLUMN IF NOT EXISTS sold_by_gstin VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS sold_to_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS sold_to_address TEXT,
+  ADD COLUMN IF NOT EXISTS sold_to_gstin VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS ship_to_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS ship_to_address TEXT,
+  ADD COLUMN IF NOT EXISTS ship_to_gstin VARCHAR(20);
 
 CREATE INDEX IF NOT EXISTS idx_orders_company_warehouse_created
   ON orders(company_id, warehouse_id, created_at DESC);
