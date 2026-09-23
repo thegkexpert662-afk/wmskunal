@@ -559,6 +559,8 @@ WHERE p.permission_key IN (
   'company.read',
   'user.read',
   'user.manage',
+  'inbound.read',
+  'inbound.create',
   'grn.read',
   'grn.create',
   'qc.read',
