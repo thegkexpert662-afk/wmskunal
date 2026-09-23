@@ -13,7 +13,7 @@ const sourceSchema=z.object({
   quantity:z.coerce.number().positive(),
   locationId:z.string().uuid(),
 });
-const processSchema=z.object({locationId:z.string().uuid(),quantity:z.coerce.number().positive()});
+const processSchema=z.object({locationId:z.string().uuid()});
 
 function scope(assigned, params){ return assigned.length ? ' AND w.id = ANY($'+(params.length+1)+'::uuid[])' : ''; }
 
