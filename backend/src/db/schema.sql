@@ -901,6 +901,16 @@ INSERT INTO role_permissions (role, permission_id)
 SELECT r.role, p.id
 FROM (VALUES
  ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator'),
+ ('warehouse_qc'),('gate_operator'),('inventory_user')
+) AS r(role)
+CROSS JOIN permissions p
+WHERE p.permission_key = 'return.manage'
+ON CONFLICT (role, permission_id) DO NOTHING;
+
+INSERT INTO role_permissions (role, permission_id)
+SELECT r.role, p.id
+FROM (VALUES
+ ('warehouse_manager'),('warehouse_supervisor'),('warehouse_operator'),
  ('warehouse_qc'),('gate_operator'),('inventory_user'),('dispatch_user')
 ) AS r(role)
 CROSS JOIN permissions p
