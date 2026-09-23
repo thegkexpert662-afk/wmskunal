@@ -29,4 +29,23 @@ class WarehouseService {
       (body['warehouses'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)),
     );
   }
+
+  Future<List<Map<String, dynamic>>> getLocations(String warehouseId) async {
+    final token = AuthService.instance.session?.accessToken;
+    if (token == null || token.isEmpty) throw Exception('Please login again.');
+    final r = await http.get(
+      Uri.parse('$_baseUrl/warehouses/${Uri.encodeComponent(warehouseId)}/locations'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    final body = jsonDecode(r.body);
+    if (r.statusCode != 200) {
+      final message = body is Map && body['error'] is Map
+          ? body['error']['message']
+          : 'Unable to load locations.';
+      throw Exception(message);
+    }
+    return List<Map<String, dynamic>>.from(
+      (body['locations'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)),
+    );
+  }
 }
