@@ -323,7 +323,8 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id);
+  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
+  ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_orders_company_warehouse_created
   ON orders(company_id, warehouse_id, created_at DESC);
