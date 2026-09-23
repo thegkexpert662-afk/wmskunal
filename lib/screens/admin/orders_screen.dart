@@ -263,21 +263,122 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   void _msg(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
 }
 
-class _OrderDialog extends StatefulWidget{
-  final Map<String,dynamic> detail;final OrderService api;final Future<void> Function() onChanged;
-  const _OrderDialog({required this.detail,required this.api,required this.onChanged});
-  @override State<_OrderDialog> createState()=>_OrderDialogState();
+class _OrderDialog extends StatefulWidget {
+  final Map<String, dynamic> detail;
+  final OrderService api;
+  final Future<void> Function() onChanged;
+
+  const _OrderDialog({
+    required this.detail,
+    required this.api,
+    required this.onChanged,
+  });
+
+  @override
+  State<_OrderDialog> createState() => _OrderDialogState();
 }
-class _OrderDialogState extends State<_OrderDialog>{
-  bool busy=false;
-  final Map<String,List<String>> transitions={'draft':['confirmed','cancelled'],'confirmed':['allocated','cancelled'],'allocated':['picking','cancelled'],'picking':['packed'],'packed':['dispatched'],'dispatched':['delivered']};
-  Future<void> _set(String s)async{setState(()=>busy=true);try{await widget.api.updateStatus(widget.detail['id'].toString(),s);await widget.onChanged();if(mounted)Navigator.pop(context);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}finally{if(mounted)setState(()=>busy=false);}}
-  @override Widget build(BuildContext context){
-    final status=widget.detail['status'].toString();final items=(widget.detail['items'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
-    return AlertDialog(title:Text('Order ${widget.detail['order_no']}'),content:SizedBox(width:700,child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Text('Client: ${widget.detail['client_name']}  •  Warehouse: ${widget.detail['warehouse_code']}'),const SizedBox(height:8),_chip(status),const Divider(),
-      ...items.map((x)=>ListTile(title:Text('${x['sku']} - ${x['product_name']}'),subtitle:Text('Ordered: ${x['ordered_qty']} | Picked: ${x['picked_qty']} | Dispatched: ${x['dispatched_qty']}'))),
-      const SizedBox(height:8),if((transitions[status]??[]).isNotEmpty)Wrap(spacing:8,children:transitions[status]!.map((s)=>FilledButton.tonal(onPressed:busy?null:()=>_set(s),child:Text('Set ${s.toUpperCase()}'))).toList()),
-    ]))),actions:[TextButton(onPressed:busy?null:()=>Navigator.pop(context),child:const Text('Close'))]);
+
+class _OrderDialogState extends State<_OrderDialog> {
+  bool busy = false;
+
+  final Map<String, List<String>> transitions = {
+    'draft': ['confirmed', 'cancelled'],
+    'confirmed': ['allocated', 'cancelled'],
+    'allocated': ['picking', 'cancelled'],
+    'picking': ['packed'],
+    'packed': ['dispatched'],
+    'dispatched': ['delivered'],
+  };
+
+  Future<void> _set(String status) async {
+    setState(() => busy = true);
+    try {
+      await widget.api.updateStatus(widget.detail['id'].toString(), status);
+      await widget.onChanged();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = widget.detail['status']?.toString() ?? '-';
+    final items = (widget.detail['items'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final nextStatuses = transitions[status] ?? [];
+
+    return AlertDialog(
+      title: Text('Order ' + (widget.detail['order_no']?.toString() ?? '-')),
+      content: SizedBox(
+        width: 700,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Client: ' +
+                    (widget.detail['client_name']?.toString() ?? '-') +
+                    '  •  Warehouse: ' +
+                    (widget.detail['warehouse_code']?.toString() ?? '-'),
+              ),
+              const SizedBox(height: 8),
+              _chip(status),
+              const Divider(),
+              ...items.map(
+                (item) => ListTile(
+                  title: Text(
+                    (item['sku']?.toString() ?? '-') +
+                        ' - ' +
+                        (item['product_name']?.toString() ?? '-'),
+                  ),
+                  subtitle: Text(
+                    'Ordered: ' +
+                        (item['ordered_qty']?.toString() ?? '0') +
+                        ' | Picked: ' +
+                        (item['picked_qty']?.toString() ?? '0') +
+                        ' | Dispatched: ' +
+                        (item['dispatched_qty']?.toString() ?? '0'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (nextStatuses.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  children: nextStatuses
+                      .map(
+                        (nextStatus) => FilledButton.tonal(
+                          onPressed: busy ? null : () => _set(nextStatus),
+                          child: Text('Set ' + nextStatus.toUpperCase()),
+                        ),
+                      )
+                      .toList(),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: busy ? null : () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _chip(String status) {
+    return Chip(
+      label: Text(status.replaceAll('_', ' ').toUpperCase()),
+      visualDensity: VisualDensity.compact,
+    );
   }
 }
