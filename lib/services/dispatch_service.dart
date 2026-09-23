@@ -46,9 +46,7 @@ class DispatchService {
     final r = await http.get(Uri.parse('$base/dispatch/$id'), headers: _headers());
     final b = jsonDecode(r.body);
     if (r.statusCode != 200) throw Exception(_message(b));
-    final result = Map<String, dynamic>.from(b['dispatch'] as Map);
-    if (b['invoice'] is Map) result['_invoice'] = Map<String, dynamic>.from(b['invoice'] as Map);
-    return result;
+    return Map<String, dynamic>.from(b['dispatch'] as Map);
   }
 
   Future<Map<String, dynamic>> create({
@@ -82,7 +80,9 @@ class DispatchService {
     );
     final b = jsonDecode(r.body);
     if (r.statusCode < 200 || r.statusCode >= 300) throw Exception(_message(b));
-    return Map<String, dynamic>.from(b['dispatch'] as Map);
+    final result = Map<String, dynamic>.from(b['dispatch'] as Map);
+    if (b['invoice'] is Map) result['_invoice'] = Map<String, dynamic>.from(b['invoice'] as Map);
+    return result;
   }
 
   Future<Map<String, dynamic>> _patch(String path, Map<String, dynamic> body) async {
