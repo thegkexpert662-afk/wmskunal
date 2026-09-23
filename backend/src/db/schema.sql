@@ -470,15 +470,50 @@ CREATE TABLE IF NOT EXISTS dispatch (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id),
   order_id UUID NOT NULL REFERENCES orders(id),
+  packing_id UUID REFERENCES packing(id),
+  warehouse_id UUID REFERENCES warehouses(id),
   dispatch_no VARCHAR(60) NOT NULL,
   vehicle_no VARCHAR(50),
+  transporter_name VARCHAR(200),
+  driver_name VARCHAR(150),
+  driver_mobile VARCHAR(30),
   lr_no VARCHAR(100),
-  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  status VARCHAR(30) NOT NULL DEFAULT 'ready'
+    CHECK (status IN ('ready','dispatched','in_transit','delivered','cancelled')),
+  total_packages INTEGER NOT NULL DEFAULT 0 CHECK (total_packages >= 0),
+  total_weight NUMERIC(18,4) NOT NULL DEFAULT 0 CHECK (total_weight >= 0),
   dispatched_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (company_id, dispatch_no)
 );
+
+ALTER TABLE dispatch
+  ADD COLUMN IF NOT EXISTS packing_id UUID REFERENCES packing(id),
+  ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id),
+  ADD COLUMN IF NOT EXISTS transporter_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS driver_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS driver_mobile VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS total_packages INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_weight NUMERIC(18,4) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE dispatch DROP CONSTRAINT IF EXISTS dispatch_status_check;
+ALTER TABLE dispatch ADD CONSTRAINT dispatch_status_check
+  CHECK (status IN ('ready','dispatched','in_transit','delivered','cancelled'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dispatch_active_order
+  ON dispatch(company_id, order_id)
+  WHERE status IN ('ready','dispatched','in_transit');
+
+CREATE INDEX IF NOT EXISTS idx_dispatch_company_status
+  ON dispatch(company_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_dispatch_warehouse
+  ON dispatch(company_id, warehouse_id);
 
 CREATE TABLE IF NOT EXISTS dispatch_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
