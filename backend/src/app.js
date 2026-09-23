@@ -7,6 +7,8 @@ const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const grnRoutes = require('./routes/grn.routes');
 const deviceRoutes = require('./routes/device.routes');
+const companyRoutes = require('./routes/company.routes');
+const clientRoutes = require('./routes/client.routes');
 
 const app = express();
 
@@ -43,6 +45,8 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/grns', grnRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/company', companyRoutes);
+app.use('/api/clients', clientRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
