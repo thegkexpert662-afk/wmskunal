@@ -112,9 +112,12 @@ router.post(
         return res.status(400).json({ error: { code: 'CLIENT_NOT_ALLOWED', message: 'Admin users cannot be linked to a client.' } });
       }
 
-      const company = await pool.query('SELECT 1 FROM companies WHERE id = $1 LIMIT 1', [companyId]);
+      const company = await pool.query('SELECT id, is_active FROM companies WHERE id = $1 LIMIT 1', [companyId]);
       if (company.rowCount === 0) {
         return res.status(404).json({ error: { code: 'COMPANY_NOT_FOUND', message: 'Company not found.' } });
+      }
+      if (company.rows[0].is_active === false) {
+        return res.status(403).json({ error: { code: 'COMPANY_INACTIVE', message: 'Cannot create a user for an inactive company.' } });
       }
       if (!(await validateClient(companyId, input.clientId))) {
         return res.status(400).json({ error: { code: 'CLIENT_COMPANY_MISMATCH', message: 'Client does not belong to the selected company or is inactive.' } });
@@ -137,6 +140,43 @@ router.post(
     } catch (error) {
       if (error.name === 'ZodError') return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid user request.' } });
       if (error.code === '23505') return res.status(409).json({ error: { code: 'USERNAME_OR_EMAIL_EXISTS', message: 'Username or email already exists.' } });
+      return next(error);
+    }
+  },
+);
+
+router.get(
+  '/:id',
+  requireAuth,
+  requireApprovedDevice,
+  requirePermission('user.read'),
+  async (req, res, next) => {
+    try {
+      const params = [req.params.id];
+      let scope = '';
+      if (req.user.role === 'admin') {
+        await requireTenantContext(req, res, () => {});
+        if (res.headersSent) return;
+        scope = ' AND u.company_id = $2';
+        params.push(req.tenant.companyId);
+      } else if (req.user.role !== 'master_admin') {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You do not have permission to view users.' } });
+      }
+
+      const result = await pool.query(
+        'SELECT u.id, u.company_id, c.company_code, c.name AS company_name, ' +
+        'u.client_id, cl.client_code, cl.name AS client_name, u.username, u.email, ' +
+        'u.full_name, u.role, u.is_active, u.created_at, u.updated_at ' +
+        'FROM users u LEFT JOIN companies c ON c.id = u.company_id ' +
+        'LEFT JOIN clients cl ON cl.id = u.client_id ' +
+        'WHERE u.id = $1' + scope + ' LIMIT 1',
+        params,
+      );
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
+      }
+      return res.json({ user: result.rows[0] });
+    } catch (error) {
       return next(error);
     }
   },
@@ -170,6 +210,9 @@ router.patch(
       if (current.rowCount === 0) return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
 
       const existing = current.rows[0];
+      if (existing.id === req.user.sub) {
+        return res.status(400).json({ error: { code: 'SELF_MANAGEMENT_BLOCKED', message: 'Use the account/profile flow to manage your own profile.' } });
+      }
       if (existing.role === 'master_admin') {
         return res.status(403).json({ error: { code: 'MASTER_USER_PROTECTED', message: 'Master Admin users cannot be changed from this endpoint.' } });
       }
@@ -182,6 +225,9 @@ router.patch(
         ? (input.clientId !== undefined ? input.clientId : existing.client_id)
         : null;
 
+      if (nextRole === 'client' && !nextClientId) {
+        return res.status(400).json({ error: { code: 'CLIENT_REQUIRED', message: 'Client is required for a client user.' } });
+      }
       if (nextRole === 'client' && !(await validateClient(existing.company_id, nextClientId))) {
         return res.status(400).json({ error: { code: 'CLIENT_COMPANY_MISMATCH', message: 'Client does not belong to the user company or is inactive.' } });
       }
@@ -235,6 +281,9 @@ router.patch(
         params,
       );
       if (current.rowCount === 0) return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
+      if (current.rows[0].id === req.user.sub) {
+        return res.status(400).json({ error: { code: 'SELF_STATUS_CHANGE_BLOCKED', message: 'You cannot deactivate or activate your own account here.' } });
+      }
       if (current.rows[0].role === 'master_admin') {
         return res.status(403).json({ error: { code: 'MASTER_USER_PROTECTED', message: 'Master Admin users cannot be changed from this endpoint.' } });
       }
