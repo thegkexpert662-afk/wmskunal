@@ -156,7 +156,7 @@ router.post('/tasks', requirePermission('packing.manage'), async(req,res,next)=>
        JOIN clients c ON c.id=o.client_id
        JOIN warehouses w ON w.id=o.warehouse_id
        WHERE o.id=$1 AND o.company_id=$2${scope}
-       FOR UPDATE OF o LIMIT 1`,params);
+       LIMIT 1 FOR UPDATE OF o`,params);
     if(!orderResult.rowCount){
       await db.query('ROLLBACK');
       return res.status(404).json({error:{code:'ORDER_NOT_FOUND',message:'Order not found or outside your warehouse access.'}});
