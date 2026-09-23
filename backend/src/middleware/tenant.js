@@ -28,6 +28,7 @@ async function requireTenantContext(req, res, next) {
   try {
     const result = await pool.query(
       `SELECT u.id, u.company_id, u.client_id, u.role, u.is_active,
+              co.is_active AS company_is_active,
               c.is_active AS client_is_active,
               c.company_id AS client_company_id
        FROM users u
@@ -47,6 +48,10 @@ async function requireTenantContext(req, res, next) {
     }
 
     const currentUser = result.rows[0];
+
+    if (currentUser.company_is_active === false) {
+      return res.status(403).json({ error: { code: 'COMPANY_INACTIVE', message: 'This company is inactive.' } });
+    }
 
     if (currentUser.role !== req.user.role ||
         currentUser.company_id !== req.user.companyId) {
