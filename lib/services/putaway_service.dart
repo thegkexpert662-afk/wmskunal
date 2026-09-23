@@ -11,6 +11,11 @@ class PutawayService {
     if(t==null||t.isEmpty)throw Exception('Please login again.');
     return {'Content-Type':'application/json','Authorization':'Bearer $t'};
   }
+  Future<List<Map<String,dynamic>>> locations(String warehouseId)async{
+    final r=await http.get(Uri.parse('$base/putaway/locations?warehouseId=${Uri.encodeComponent(warehouseId)}'),headers:headers);
+    if(r.statusCode!=200)throw Exception(_err(r));
+    return ((jsonDecode(r.body) as Map)['locations'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+  }
   Future<List<Map<String,dynamic>>> pending()async{
     final r=await http.get(Uri.parse('$base/putaway/pending'),headers:headers);
     if(r.statusCode!=200)throw Exception(_err(r));
