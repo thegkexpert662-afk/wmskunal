@@ -32,7 +32,7 @@ router.get('/', requirePermission('inventory.read'), async (req,res,next)=>{
       SELECT i.id,i.product_id,p.sku,p.name product_name,p.uom,
              i.warehouse_id,w.code warehouse_code,w.name warehouse_name,
              i.location_id,wl.code location_code,wl.zone,wl.bin,
-             i.quantity,i.reserved_quantity,
+             i.quantity,i.reserved_quantity,i.damaged_quantity,
              GREATEST(i.quantity-i.reserved_quantity,0) available_quantity,
              i.updated_at
       FROM inventory i
