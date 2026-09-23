@@ -74,22 +74,179 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     value:values.contains(value)?value:values.first,isExpanded:true,items:values.map((v)=>DropdownMenuItem(value:v,child:Text(v=='All'?'${label}: All':v))).toList(),onChanged:cb,
   )));
 
-  Future<void> _newOrder()async{
-    String? cid=clients.first['id'].toString(),wid=warehouses.first['id'].toString(),pid=products.first['id'].toString();
-    final no=TextEditingController(text:'ORD-${DateTime.now().millisecondsSinceEpoch}'),qty=TextEditingController(text:'1'),date=TextEditingController();
-    final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setLocal)=>AlertDialog(
-      title:const Text('Create Client Order'),content:SizedBox(width:550,child:Column(mainAxisSize:MainAxisSize.min,children:[
-        _field(no,'Order Number *'),const SizedBox(height:10),_select('Client *',cid,clients,(x)=>x['name'].toString(),(v)=>setLocal(()=>cid=v)),
-        const SizedBox(height:10),_select('Warehouse *',wid,warehouses,(x)=>'${x['code']} - ${x['name']}',(v)=>setLocal(()=>wid=v)),
-        const SizedBox(height:10),_select('Product *',pid,products,(x)=>'${x['sku']} - ${x['name']}',(v)=>setLocal(()=>pid=v)),
-        const SizedBox(height:10),_field(qty,'Ordered Quantity *',decimal:true),const SizedBox(height:10),_field(date,'Required Date (YYYY-MM-DD)'),
-      ])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Cancel')),FilledButton(onPressed:()async{
-        final q=double.tryParse(qty.text);if(q==null||q<=0)return;
-        try{await api.create(orderNo:no.text.trim(),clientId:cid!,warehouseId:wid!,requiredDate:date.text.trim().isEmpty?null:date.text.trim(),items:[{'productId':pid!,'orderedQty':q}]);if(ctx.mounted)Navigator.pop(ctx,true);}
-        catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
-      },child:const Text('Create Order'))],
-    )));
-    no.dispose();qty.dispose();date.dispose();if(ok==true){await _load();_msg('Order created successfully.');}
+  Future<void> _newOrder() async {
+    String? cid = clients.first['id'].toString();
+    String? wid = warehouses.first['id'].toString();
+    String? pid = products.first['id'].toString();
+
+    final no = TextEditingController(text: 'ORD-${DateTime.now().millisecondsSinceEpoch}');
+    final qty = TextEditingController(text: '1');
+    final date = TextEditingController();
+    final truck = TextEditingController();
+    final transporter = TextEditingController();
+    final vehicle = TextEditingController();
+    final driver = TextEditingController();
+    final driverMobile = TextEditingController();
+    final shipment = TextEditingController();
+    final shipmentDate = TextEditingController();
+    final delivery = TextEditingController();
+    final deliveryDate = TextEditingController();
+    final soldBy = TextEditingController();
+    final soldByAddress = TextEditingController();
+    final soldByGstin = TextEditingController();
+    final soldTo = TextEditingController();
+    final soldToAddress = TextEditingController();
+    final soldToGstin = TextEditingController();
+    final shipTo = TextEditingController();
+    final shipToAddress = TextEditingController();
+    final shipToGstin = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Create Client Order'),
+          content: SizedBox(
+            width: 820,
+            height: 650,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _field(no, 'Order Number *'),
+                  const SizedBox(height: 10),
+                  _select('Client *', cid, clients, (x) => x['name'].toString(), (v) => setLocal(() => cid = v)),
+                  const SizedBox(height: 10),
+                  _select('Warehouse *', wid, warehouses, (x) => '${x['code']} - ${x['name']}', (v) => setLocal(() => wid = v)),
+                  const SizedBox(height: 10),
+                  _select('Product *', pid, products, (x) => '${x['sku']} - ${x['name']}', (v) => setLocal(() => pid = v)),
+                  const SizedBox(height: 10),
+                  _field(qty, 'Ordered Quantity *', decimal: true),
+                  const SizedBox(height: 10),
+                  _field(date, 'Required Date (YYYY-MM-DD)'),
+
+                  const SizedBox(height: 18),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Shipment / Vehicle Information', style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(truck, 'Truck Type')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(transporter, 'Transporter')),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(vehicle, 'Vehicle No.')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(driver, 'Driver Name')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(driverMobile, 'Driver Mobile')),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(shipment, 'Shipment No.')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(shipmentDate, 'Shipment Date (YYYY-MM-DD)')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(delivery, 'Delivery No.')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(deliveryDate, 'Delivery Date (YYYY-MM-DD)')),
+                  ]),
+
+                  const SizedBox(height: 18),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Sold By / Sold To / Ship To', style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(soldBy, 'Sold By Name')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(soldByGstin, 'Sold By GSTIN')),
+                  ]),
+                  const SizedBox(height: 8),
+                  _field(soldByAddress, 'Sold By Address'),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(soldTo, 'Sold To Name')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(soldToGstin, 'Sold To GSTIN')),
+                  ]),
+                  const SizedBox(height: 8),
+                  _field(soldToAddress, 'Sold To Address'),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _field(shipTo, 'Ship To Name')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _field(shipToGstin, 'Ship To GSTIN')),
+                  ]),
+                  const SizedBox(height: 8),
+                  _field(shipToAddress, 'Ship To Address'),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final q = double.tryParse(qty.text);
+                if (q == null || q <= 0) return;
+                try {
+                  await api.create(
+                    orderNo: no.text.trim(),
+                    clientId: cid!,
+                    warehouseId: wid!,
+                    requiredDate: date.text.trim().isEmpty ? null : date.text.trim(),
+                    items: [{'productId': pid!, 'orderedQty': q}],
+                    truckType: truck.text.trim().isEmpty ? null : truck.text.trim(),
+                    transporterName: transporter.text.trim().isEmpty ? null : transporter.text.trim(),
+                    vehicleNo: vehicle.text.trim().isEmpty ? null : vehicle.text.trim(),
+                    driverName: driver.text.trim().isEmpty ? null : driver.text.trim(),
+                    driverMobile: driverMobile.text.trim().isEmpty ? null : driverMobile.text.trim(),
+                    shipmentNo: shipment.text.trim().isEmpty ? null : shipment.text.trim(),
+                    shipmentDate: shipmentDate.text.trim().isEmpty ? null : shipmentDate.text.trim(),
+                    deliveryNo: delivery.text.trim().isEmpty ? null : delivery.text.trim(),
+                    deliveryDate: deliveryDate.text.trim().isEmpty ? null : deliveryDate.text.trim(),
+                    soldByName: soldBy.text.trim().isEmpty ? null : soldBy.text.trim(),
+                    soldByAddress: soldByAddress.text.trim().isEmpty ? null : soldByAddress.text.trim(),
+                    soldByGstin: soldByGstin.text.trim().isEmpty ? null : soldByGstin.text.trim(),
+                    soldToName: soldTo.text.trim().isEmpty ? null : soldTo.text.trim(),
+                    soldToAddress: soldToAddress.text.trim().isEmpty ? null : soldToAddress.text.trim(),
+                    soldToGstin: soldToGstin.text.trim().isEmpty ? null : soldToGstin.text.trim(),
+                    shipToName: shipTo.text.trim().isEmpty ? null : shipTo.text.trim(),
+                    shipToAddress: shipToAddress.text.trim().isEmpty ? null : shipToAddress.text.trim(),
+                    shipToGstin: shipToGstin.text.trim().isEmpty ? null : shipToGstin.text.trim(),
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx, true);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                    );
+                  }
+                }
+              },
+              child: const Text('Create Order'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    for (final controller in [
+      no, qty, date, truck, transporter, vehicle, driver, driverMobile,
+      shipment, shipmentDate, delivery, deliveryDate, soldBy, soldByAddress,
+      soldByGstin, soldTo, soldToAddress, soldToGstin, shipTo, shipToAddress, shipToGstin,
+    ]) {
+      controller.dispose();
+    }
+
+    if (ok == true) {
+      await _load();
+      _msg('Order created successfully.');
+    }
   }
 
   Widget _select(String label,String? value,List<Map<String,dynamic>> data,String Function(Map<String,dynamic>) text,ValueChanged<String?> cb)=>DropdownButtonFormField<String>(
