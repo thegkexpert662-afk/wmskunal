@@ -7,6 +7,7 @@ const { requireApprovedDevice } = require('../middleware/device');
 const { requirePermission } = require('../middleware/permission');
 const { requireRole } = require('../middleware/role');
 const { requireTenantContext } = require('../middleware/tenant');
+const { getAssignedWarehouseIds } = require('../middleware/warehouse_access');
 
 const warehouseSchema = z.object({
   code: z.string().trim().min(2).max(50).regex(/^[A-Za-z0-9._-]+$/),
@@ -31,21 +32,26 @@ async function getWarehouse(warehouseId, companyId) {
   return result.rows[0] || null;
 }
 
-router.get('/', requireAuth, requireApprovedDevice, requireRole('admin'), requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
+router.get('/', requireAuth, requireApprovedDevice, requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
+    const params = [req.tenant.companyId];
+    let filter = '';
+    if (ids.length) { params.push(ids); filter = ' AND w.id = ANY($2::uuid[])'; }
     const result = await pool.query(
       'SELECT w.id, w.code, w.name, w.address, w.is_active, w.created_at, w.updated_at, ' +
       'COUNT(l.id)::int AS location_count, COUNT(l.id) FILTER (WHERE l.is_active = TRUE)::int AS active_location_count ' +
       'FROM warehouses w LEFT JOIN warehouse_locations l ON l.warehouse_id = w.id ' +
-      'WHERE w.company_id = $1 GROUP BY w.id ORDER BY w.name ASC',
-      [req.tenant.companyId],
+      'WHERE w.company_id = $1' + filter + ' GROUP BY w.id ORDER BY w.name ASC',
+      params,
     );
     return res.json({ warehouses: result.rows });
   } catch (error) { return next(error); }
 });
 
-router.get('/:id', requireAuth, requireApprovedDevice, requireRole('admin'), requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
+router.get('/:id', requireAuth, requireApprovedDevice, requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const result = await pool.query(
       'SELECT w.id, w.code, w.name, w.address, w.is_active, w.created_at, w.updated_at, ' +
       'COUNT(l.id)::int AS location_count, COUNT(l.id) FILTER (WHERE l.is_active = TRUE)::int AS active_location_count ' +
@@ -54,6 +60,7 @@ router.get('/:id', requireAuth, requireApprovedDevice, requireRole('admin'), req
       [req.params.id, req.tenant.companyId],
     );
     if (result.rowCount === 0) return res.status(404).json({ error: { code: 'WAREHOUSE_NOT_FOUND', message: 'Warehouse not found.' } });
+    if (ids.length && !ids.includes(result.rows[0].id)) return res.status(403).json({ error: { code: 'WAREHOUSE_ACCESS_DENIED', message: 'You are not assigned to this warehouse.' } });
     return res.json({ warehouse: result.rows[0] });
   } catch (error) { return next(error); }
 });
@@ -134,10 +141,12 @@ router.patch('/:id/status', requireAuth, requireApprovedDevice, requireRole('adm
   }
 });
 
-router.get('/:id/locations', requireAuth, requireApprovedDevice, requireRole('admin'), requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
+router.get('/:id/locations', requireAuth, requireApprovedDevice, requireTenantContext, requirePermission('warehouse.read'), async (req, res, next) => {
   try {
+    const ids = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const warehouse = await getWarehouse(req.params.id, req.tenant.companyId);
     if (!warehouse) return res.status(404).json({ error: { code: 'WAREHOUSE_NOT_FOUND', message: 'Warehouse not found.' } });
+    if (ids.length && !ids.includes(warehouse.id)) return res.status(403).json({ error: { code: 'WAREHOUSE_ACCESS_DENIED', message: 'You are not assigned to this warehouse.' } });
     const result = await pool.query(
       'SELECT id, warehouse_id, code, zone, bin, is_active, created_at, updated_at ' +
       'FROM warehouse_locations WHERE warehouse_id = $1 ORDER BY zone NULLS LAST, bin NULLS LAST, code ASC',
