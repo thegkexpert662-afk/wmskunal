@@ -28,9 +28,13 @@ async function requireTenantContext(req, res, next) {
   try {
     const result = await pool.query(
       `SELECT u.id, u.company_id, u.client_id, u.role, u.is_active,
-              c.is_active AS client_is_active
+              c.is_active AS client_is_active,
+              c.company_id AS client_company_id
        FROM users u
-       LEFT JOIN clients c ON c.id = u.client_id
+       JOIN companies co ON co.id = u.company_id
+       LEFT JOIN clients c
+         ON c.id = u.client_id
+        AND c.company_id = u.company_id
        WHERE u.id = $1
        LIMIT 1`,
       [req.user.sub],
@@ -55,7 +59,9 @@ async function requireTenantContext(req, res, next) {
     }
 
     if (currentUser.role === 'client') {
-      if (!currentUser.client_id || currentUser.client_id !== req.user.clientId) {
+      if (!currentUser.client_id ||
+        currentUser.client_id !== req.user.clientId ||
+        currentUser.client_company_id !== currentUser.company_id) {
         return res.status(403).json({
           error: {
             code: 'CLIENT_CONTEXT_REQUIRED',
