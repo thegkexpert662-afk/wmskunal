@@ -595,16 +595,81 @@ CREATE TABLE IF NOT EXISTS invoices (
   dispatch_id UUID REFERENCES dispatch(id),
   invoice_no VARCHAR(80) NOT NULL,
   invoice_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'issued'
+    CHECK (status IN ('draft','issued','cancelled')),
   taxable_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
   cgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
   sgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
   igst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
   total_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  payment_terms TEXT,
+  due_date DATE,
+  company_name_snapshot VARCHAR(200),
+  company_logo_url_snapshot TEXT,
+  company_address_snapshot TEXT,
+  company_gstin_snapshot VARCHAR(20),
+  company_email_snapshot VARCHAR(200),
+  company_mobile_snapshot VARCHAR(30),
+  client_name_snapshot VARCHAR(200),
+  client_address_snapshot TEXT,
+  client_gstin_snapshot VARCHAR(20),
+  client_email_snapshot VARCHAR(200),
+  client_mobile_snapshot VARCHAR(30),
   pdf_path TEXT,
+  pdf_generated_at TIMESTAMPTZ,
+  email_status VARCHAR(20) NOT NULL DEFAULT 'not_sent'
+    CHECK (email_status IN ('not_sent','queued','sent','failed')),
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (company_id, invoice_no)
 );
+
+ALTER TABLE invoices
+  ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'issued',
+  ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS payment_terms TEXT,
+  ADD COLUMN IF NOT EXISTS due_date DATE,
+  ADD COLUMN IF NOT EXISTS company_name_snapshot VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS company_logo_url_snapshot TEXT,
+  ADD COLUMN IF NOT EXISTS company_address_snapshot TEXT,
+  ADD COLUMN IF NOT EXISTS company_gstin_snapshot VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS company_email_snapshot VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS company_mobile_snapshot VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS client_name_snapshot VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS client_address_snapshot TEXT,
+  ADD COLUMN IF NOT EXISTS client_gstin_snapshot VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS client_email_snapshot VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS client_mobile_snapshot VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS pdf_generated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS email_status VARCHAR(20) NOT NULL DEFAULT 'not_sent',
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_status_check;
+ALTER TABLE invoices ADD CONSTRAINT invoices_status_check
+  CHECK (status IN ('draft','issued','cancelled'));
+
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_email_status_check;
+ALTER TABLE invoices ADD CONSTRAINT invoices_email_status_check
+  CHECK (email_status IN ('not_sent','queued','sent','failed'));
+
+ALTER TABLE invoice_items
+  ADD COLUMN IF NOT EXISTS uom VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS taxable_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS igst_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_invoices_company_date
+  ON invoices(company_id, invoice_date DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_company_client_date
+  ON invoices(company_id, client_id, invoice_date DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_order
+  ON invoices(company_id, order_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_dispatch
+  ON invoices(company_id, dispatch_id);
 
 ALTER TABLE returns DROP CONSTRAINT IF EXISTS returns_invoice_id_fkey;
 ALTER TABLE returns ADD CONSTRAINT returns_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES invoices(id);
@@ -616,9 +681,15 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   product_id UUID REFERENCES products(id),
   description TEXT NOT NULL,
   hsn_code VARCHAR(30),
+  uom VARCHAR(30),
   quantity NUMERIC(18,4) NOT NULL DEFAULT 0,
   weight NUMERIC(18,4) NOT NULL DEFAULT 0,
   rate NUMERIC(18,4) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  taxable_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  cgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  sgst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+  igst_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
   line_total NUMERIC(18,2) NOT NULL DEFAULT 0
 );
 
@@ -900,7 +971,7 @@ CROSS JOIN permissions p
 WHERE p.permission_key IN (
  'profile.read','profile.update','warehouse.read','product.read','inbound.read',
  'grn.read','qc.read','putaway.read','inventory.read','order.read','picking.read',
- 'packing.read','dispatch.read','return.read','report.read'
+ 'packing.read','dispatch.read','invoice.read','invoice.create','return.read','report.read'
 )
 ON CONFLICT (role, permission_id) DO NOTHING;
 
