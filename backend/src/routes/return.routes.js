@@ -46,6 +46,7 @@ const qcSchema = z.object({
     damagedQty: z.coerce.number().min(0),
     rejectedQty: z.coerce.number().min(0),
     locationId: z.string().uuid().optional(),
+    damagedLocationId: z.string().uuid().optional(),
     remarks: z.string().trim().max(1000).optional(),
   })).min(1),
 });
@@ -440,9 +441,17 @@ router.post('/:id/qc', requirePermission('return.manage'), async (req,res,next)=
     for(const q of input.items){
       const item=rows.rows.find(x=>x.id===q.returnItemId);
       const accepted=Number(q.acceptedQty),damaged=Number(q.damagedQty),rejected=Number(q.rejectedQty),returned=Number(item.returned_qty);
+      if(rejected>0 && !(q.remarks || '').trim()){
+        await db.query('ROLLBACK');
+        return res.status(400).json({error:{code:'REJECTION_REASON_REQUIRED',message:`Rejection reason is required for ${item.sku}.`}});
+      }
       if(Math.abs(accepted+damaged+rejected-returned)>0.00001){
         await db.query('ROLLBACK');
         return res.status(400).json({error:{code:'QC_QTY_MISMATCH',message:`QC quantities for ${item.sku} must equal returned quantity.`}});
+      }
+      if((accepted>0 || damaged>0) && !q.locationId && !q.damagedLocationId){
+        await db.query('ROLLBACK');
+        return res.status(400).json({error:{code:'LOCATION_REQUIRED',message:`A storage location is required for accepted or damaged quantity of ${item.sku}.`}});
       }
       if(accepted>0){
         if(!q.locationId){await db.query('ROLLBACK');return res.status(400).json({error:{code:'LOCATION_REQUIRED',message:`Accepted quantity for ${item.sku} requires a storage location.`}});}
@@ -460,11 +469,44 @@ router.post('/:id/qc', requirePermission('return.manage'), async (req,res,next)=
 
       await db.query(
         `UPDATE return_items
-         SET qc_result=$1,accepted_qty=$2,damaged_qty=$3,rejected_qty=$4,remarks=$5
-         WHERE id=$6`,
-        [result,accepted,damaged,rejected,q.remarks || null,item.id],
+         SET qc_result=$1,accepted_qty=$2,damaged_qty=$3,rejected_qty=$4,remarks=$5,
+             qc_by=$6,qc_at=NOW(),
+             rejected_by=CASE WHEN $7 > 0 THEN $6 ELSE rejected_by END,
+             rejected_at=CASE WHEN $7 > 0 THEN NOW() ELSE rejected_at END,
+             rejection_reason=CASE WHEN $7 > 0 THEN $8 ELSE rejection_reason END
+         WHERE id=$9`,
+        [result,accepted,damaged,rejected,q.remarks || null,req.user.sub,rejected,q.remarks || null,item.id],
       );
 
+      const damagedLocationId = q.damagedLocationId || q.locationId;
+      if(damaged>0){
+        if(!damagedLocationId){
+          await db.query('ROLLBACK');
+          return res.status(400).json({error:{code:'DAMAGED_LOCATION_REQUIRED',message:`Damaged quantity for ${item.sku} requires a damage/quarantine location.`}});
+        }
+        const loc=await db.query(
+          `SELECT id FROM warehouse_locations WHERE id=$1 AND warehouse_id=$2 AND is_active=TRUE`,
+          [damagedLocationId,current.warehouse_id],
+        );
+        if(!loc.rowCount){
+          await db.query('ROLLBACK');
+          return res.status(400).json({error:{code:'INVALID_DAMAGE_LOCATION',message:'Selected damaged stock location is invalid.'}});
+        }
+        await db.query(
+          `INSERT INTO inventory(company_id,product_id,warehouse_id,location_id,quantity,reserved_quantity,damaged_quantity)
+           VALUES($1,$2,$3,$4,0,0,$5)
+           ON CONFLICT(company_id,product_id,warehouse_id,location_id)
+           DO UPDATE SET damaged_quantity=inventory.damaged_quantity+EXCLUDED.damaged_quantity,updated_at=NOW()`,
+          [req.tenant.companyId,item.product_id,current.warehouse_id,damagedLocationId,damaged],
+        );
+        await db.query(
+          `INSERT INTO inventory_transactions(
+             company_id,product_id,warehouse_id,location_id,transaction_type,quantity,
+             reference_type,reference_id,created_by
+           ) VALUES($1,$2,$3,$4,'return_damaged',$5,'return',$6,$7)`,
+          [req.tenant.companyId,item.product_id,current.warehouse_id,damagedLocationId,damaged,current.id,req.user.sub],
+        );
+      }
       if(accepted>0){
         await db.query(
           `INSERT INTO inventory(company_id,product_id,warehouse_id,location_id,quantity,reserved_quantity)
