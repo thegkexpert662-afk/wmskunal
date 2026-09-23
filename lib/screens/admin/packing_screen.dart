@@ -190,31 +190,215 @@ class _PackingTaskDialogState extends State<PackingTaskDialog> {
 
 class PackageForm extends StatefulWidget {
   const PackageForm({super.key});
-  @override State<PackageForm> createState()=>_PackageFormState();
-}
-class _PackageFormState extends State<PackageForm>{
-  final no=TextEditingController(),type=TextEditingController(text:'Box'),weight=TextEditingController(text:'0'),length=TextEditingController(text:'0'),width=TextEditingController(text:'0'),height=TextEditingController(text:'0');
-  @override void dispose(){no.dispose();type.dispose();weight.dispose();length.dispose();width.dispose();height.dispose();super.dispose();}
-  @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Create Package'),content:SizedBox(width:420,child:Column(mainAxisSize:MainAxisSize.min,children:[
-    TextField(controller:no,decoration:const InputDecoration(labelText:'Package No')),
-    TextField(controller:type,decoration:const InputDecoration(labelText:'Package Type')),
-    Row(children:[Expanded(child:TextField(controller:weight,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Weight kg'))),const SizedBox(width:8),Expanded(child:TextField(controller:length,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Length')))]),
-    Row(children:[Expanded(child:TextField(controller:width,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Width'))),const SizedBox(width:8),Expanded(child:TextField(controller:height,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Height')))]),
-  ])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){if(no.text.trim().isEmpty)return;Navigator.pop(c,{'no':no.text.trim(),'type':type.text.trim().isEmpty?'Box':type.text.trim(),'weight':double.tryParse(weight.text)??0,'length':double.tryParse(length.text)??0,'width':double.tryParse(width.text)??0,'height':double.tryParse(height.text)??0});},child:const Text('Create'))]);
+
+  @override
+  State<PackageForm> createState() => _PackageFormState();
 }
 
-class PackForm extends StatefulWidget{
-  final List<Map<String,dynamic>> items,packages;
-  const PackForm({super.key,required this.items,required this.packages});
-  @override State<PackForm> createState()=>_PackFormState();
+class _PackageFormState extends State<PackageForm> {
+  final no = TextEditingController();
+  final type = TextEditingController(text: 'Box');
+  final weight = TextEditingController(text: '0');
+  final length = TextEditingController(text: '0');
+  final width = TextEditingController(text: '0');
+  final height = TextEditingController(text: '0');
+
+  @override
+  void dispose() {
+    no.dispose();
+    type.dispose();
+    weight.dispose();
+    length.dispose();
+    width.dispose();
+    height.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create Package'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: no,
+              decoration: const InputDecoration(labelText: 'Package No'),
+            ),
+            TextField(
+              controller: type,
+              decoration: const InputDecoration(labelText: 'Package Type'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: weight,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Weight kg'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: length,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Length'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: width,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Width'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: height,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Height'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (no.text.trim().isEmpty) return;
+            Navigator.pop(context, {
+              'no': no.text.trim(),
+              'type': type.text.trim().isEmpty ? 'Box' : type.text.trim(),
+              'weight': double.tryParse(weight.text) ?? 0,
+              'length': double.tryParse(length.text) ?? 0,
+              'width': double.tryParse(width.text) ?? 0,
+              'height': double.tryParse(height.text) ?? 0,
+            });
+          },
+          child: const Text('Create'),
+        ),
+      ],
+    );
+  }
 }
-class _PackFormState extends State<PackForm>{
-  String? item,package;final qty=TextEditingController();
-  @override void dispose(){qty.dispose();super.dispose();}
-  @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Pack Item'),content:SizedBox(width:450,child:Column(mainAxisSize:MainAxisSize.min,children:[
-    DropdownButtonFormField<String>(value:item,decoration:const InputDecoration(labelText:'Product / Order Item'),items:items.map((i)=>DropdownMenuItem(value:i['order_item_id'].toString(),child:Text(i['sku'].toString()+' • '+i['product_name'].toString()))).toList(),onChanged:(v)=>setState(()=>item=v)),
-    const SizedBox(height:8),
-    DropdownButtonFormField<String>(value:package,decoration:const InputDecoration(labelText:'Package'),items:packages.map((p)=>DropdownMenuItem(value:p['id'].toString(),child:Text(p['package_no'].toString()))).toList(),onChanged:(v)=>setState(()=>package=v)),
-    TextField(controller:qty,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Quantity')),
-  ])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){final q=double.tryParse(qty.text);if(item==null||package==null||q==null||q<=0)return;Navigator.pop(c,{'item':item,'package':package,'qty':q});},child:const Text('Pack'))]);
+
+class PackForm extends StatefulWidget {
+  final List<Map<String, dynamic>> items;
+  final List<Map<String, dynamic>> packages;
+
+  const PackForm({
+    super.key,
+    required this.items,
+    required this.packages,
+  });
+
+  @override
+  State<PackForm> createState() => _PackFormState();
+}
+
+class _PackFormState extends State<PackForm> {
+  String? item;
+  String? package;
+  final qty = TextEditingController();
+
+  @override
+  void dispose() {
+    qty.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemOptions = widget.items
+        .map(
+          (i) => DropdownMenuItem<String>(
+            value: i['order_item_id'].toString(),
+            child: Text(
+              '${i['sku'] ?? '-'} • ${i['product_name'] ?? '-'}',
+            ),
+          ),
+        )
+        .toList();
+
+    final packageOptions = widget.packages
+        .map(
+          (p) => DropdownMenuItem<String>(
+            value: p['id'].toString(),
+            child: Text(p['package_no']?.toString() ?? '-'),
+          ),
+        )
+        .toList();
+
+    return AlertDialog(
+      title: const Text('Pack Item'),
+      content: SizedBox(
+        width: 450,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: item,
+              decoration: const InputDecoration(
+                labelText: 'Product / Order Item',
+              ),
+              items: itemOptions,
+              onChanged: (value) => setState(() => item = value),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: package,
+              decoration: const InputDecoration(labelText: 'Package'),
+              items: packageOptions,
+              onChanged: (value) => setState(() => package = value),
+            ),
+            TextField(
+              controller: qty,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Quantity'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final quantity = double.tryParse(qty.text);
+            if (item == null ||
+                package == null ||
+                quantity == null ||
+                quantity <= 0) {
+              return;
+            }
+
+            Navigator.pop(context, {
+              'item': item,
+              'package': package,
+              'qty': quantity,
+            });
+          },
+          child: const Text('Pack'),
+        ),
+      ],
+    );
+  }
 }
