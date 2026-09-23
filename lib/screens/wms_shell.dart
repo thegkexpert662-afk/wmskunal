@@ -17,6 +17,7 @@ import 'admin/dashboard_screen.dart';
 import 'admin/inbound_screen.dart';
 import 'admin/putaway_screen.dart';
 import 'admin/stock_transfer_screen.dart';
+import 'admin/warehouse_management_screen.dart';
 import 'admin/clients_screen.dart';
 import 'admin/products_screen.dart';
 import 'admin/orders_screen.dart';
@@ -53,6 +54,7 @@ class _WmsShellState extends State<WmsShell> {
   bool collapsed = false;
 
   static const adminItems = <Map<String, dynamic>>[
+    {'title': 'Warehouse Management', 'icon': Icons.warehouse_outlined},
     {'title': 'Inward / GRN', 'icon': Icons.move_to_inbox_outlined},
     {'title': 'PUT', 'icon': Icons.inventory_2_outlined},
     {'title': 'Stock Transfer / STO', 'icon': Icons.compare_arrows_outlined},
@@ -125,20 +127,21 @@ class _WmsShellState extends State<WmsShell> {
     }
 
     switch (selected) {
-      case 0: return const AdminInboundScreen();
-      case 1: return const AdminPutawayScreen();
-      case 2: return const AdminStockTransferScreen();
-      case 3: return const AdminClientsScreen();
-      case 4: return const AdminProductsScreen();
-      case 5: return const AdminOrdersScreen();
-      case 6: return const AdminPickingScreen();
-      case 7: return const AdminPackingScreen();
-      case 8: return const AdminDispatchScreen();
-      case 9: return const AdminReturnsScreen();
-      case 10: return const AdminInvoiceScreen();
-      case 11: return const AdminStockMisScreen();
-      case 12: return const AdminProfileScreen();
-      case 13: return const AdminReportsScreen();
+      case 0: return const AdminWarehouseManagementScreen();
+      case 1: return const AdminInboundScreen();
+      case 2: return const AdminPutawayScreen();
+      case 3: return const AdminStockTransferScreen();
+      case 4: return const AdminClientsScreen();
+      case 5: return const AdminProductsScreen();
+      case 6: return const AdminOrdersScreen();
+      case 7: return const AdminPickingScreen();
+      case 8: return const AdminPackingScreen();
+      case 9: return const AdminDispatchScreen();
+      case 10: return const AdminReturnsScreen();
+      case 11: return const AdminInvoiceScreen();
+      case 12: return const AdminStockMisScreen();
+      case 13: return const AdminProfileScreen();
+      case 14: return const AdminReportsScreen();
       default: return const AdminDashboardScreen();
     }
   }
