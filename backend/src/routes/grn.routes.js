@@ -28,7 +28,6 @@ router.get('/', requirePermission('grn.read'), async (req, res, next) => {
     const params = [req.tenant.companyId];
     let warehouseScope = '';
     if (assigned.length) { params.push(assigned); warehouseScope = ' AND g.warehouse_id = ANY($2::uuid[])'; }
-    const assigned = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const result = await pool.query(
       `SELECT g.id, g.grn_no, g.supplier_name, g.invoice_no, g.status,
               g.received_at, g.created_at, w.name AS warehouse
@@ -47,6 +46,7 @@ router.get('/', requirePermission('grn.read'), async (req, res, next) => {
 
 router.get('/:id', requirePermission('grn.read'), async (req, res, next) => {
   try {
+    const assigned = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const result = await pool.query(
       `SELECT g.*, w.name AS warehouse
        FROM grns g
