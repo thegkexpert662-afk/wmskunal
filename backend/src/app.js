@@ -23,6 +23,7 @@ const packingRoutes = require('./routes/packing.routes');
 const dispatchRoutes = require('./routes/dispatch.routes');
 const returnRoutes = require('./routes/return.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
+const erpIntegrationRoutes = require('./routes/erp_integration.routes');
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/packing', packingRoutes);
 app.use('/api/dispatch', dispatchRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/integrations', erpIntegrationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
