@@ -47,8 +47,7 @@ class InboundService {
     );
   }
 
-  Future<void> createGrn({
-    required String grnNo,
+  Future<Map<String, dynamic>> createGrn({
     required String supplierName,
     String? invoiceNo,
     required String warehouseId,
@@ -58,14 +57,14 @@ class InboundService {
       Uri.parse('$_baseUrl/grns'),
       headers: _headers(),
       body: jsonEncode({
-        'grnNo': grnNo,
         'supplierName': supplierName,
         'invoiceNo': invoiceNo,
         'warehouseId': warehouseId,
         'items': items,
       }),
     );
-    _body(r);
+    final body = _body(r);
+    return Map<String, dynamic>.from(body['data'] as Map);
   }
 
   Future<void> createProductionReceipt({
