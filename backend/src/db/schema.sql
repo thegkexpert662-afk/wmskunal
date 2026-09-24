@@ -192,14 +192,22 @@ CREATE SEQUENCE IF NOT EXISTS wms_grn_no_seq
   CACHE 1
   NO CYCLE;
 
-DO $
+DO $$
 DECLARE
   max_grn BIGINT;
 BEGIN
   SELECT MAX(grn_no::BIGINT)
     INTO max_grn
   FROM grns
-  WHERE grn_no ~ '^[0-9]{10}
+  WHERE grn_no ~ '^[0-9]{10}$';
+
+  IF max_grn IS NOT NULL AND max_grn >= 1000000000 THEN
+    PERFORM setval('wms_grn_no_seq', max_grn, true);
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_grns_grn_no_global
+  ON grns(grn_no);
 
 CREATE TABLE IF NOT EXISTS production_receipts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1058,15 +1066,6 @@ WHERE p.permission_key IN (
 )
 ON CONFLICT (role, permission_id) DO NOTHING;
 
-;
-
-  IF max_grn IS NOT NULL AND max_grn >= 1000000000 THEN
-    PERFORM setval('wms_grn_no_seq', max_grn, true);
-  END IF;
-END $;
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_grns_grn_no_global
-  ON grns(grn_no);
 
 CREATE TABLE IF NOT EXISTS production_receipts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
