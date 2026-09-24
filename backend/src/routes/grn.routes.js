@@ -10,7 +10,6 @@ const { requireTenantContext } = require('../middleware/tenant');
 const { getAssignedWarehouseIds } = require('../middleware/warehouse_access');
 
 const grnSchema = z.object({
-  grnNo: z.string().trim().min(1).max(60),
   supplierName: z.string().trim().max(200).optional(),
   invoiceNo: z.string().trim().max(100).optional(),
   warehouseId: z.string().uuid().optional(),
@@ -29,6 +28,7 @@ router.get('/', requirePermission('grn.read'), async (req, res, next) => {
     const params = [req.tenant.companyId];
     let warehouseScope = '';
     if (assigned.length) { params.push(assigned); warehouseScope = ' AND g.warehouse_id = ANY($2::uuid[])'; }
+    const assigned = await getAssignedWarehouseIds(req.user.sub, req.tenant.companyId);
     const result = await pool.query(
       `SELECT g.id, g.grn_no, g.supplier_name, g.invoice_no, g.status,
               g.received_at, g.created_at, w.name AS warehouse
@@ -107,11 +107,10 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
     const grn = await client.query(
       `INSERT INTO grns
         (company_id, grn_no, supplier_name, invoice_no, warehouse_id, received_at, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, 'received', $7)
+       VALUES ($1, to_char(nextval('wms_grn_no_seq'), 'FM0000000000'), $2, $3, $4, $5, 'received', $6)
        RETURNING id, grn_no, status, created_at`,
       [
         req.tenant.companyId,
-        input.grnNo,
         input.supplierName || null,
         input.invoiceNo || null,
         input.warehouseId || null,
@@ -148,7 +147,7 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
         req.tenant.companyId,
         req.user.sub,
         grn.rows[0].id,
-        JSON.stringify({ grnNo: input.grnNo, itemCount: input.items.length }),
+        JSON.stringify({ grnNo: grn.rows[0].grn_no, itemCount: input.items.length }),
       ],
     );
 
@@ -164,7 +163,7 @@ router.post('/', requirePermission('grn.create'), async (req, res, next) => {
     }
     if (error.code === '23505') {
       return res.status(409).json({
-        error: { code: 'GRN_ALREADY_EXISTS', message: 'GRN number already exists for this company.' },
+        error: { code: 'GRN_ALREADY_EXISTS', message: 'GRN number already exists. Please retry.' },
       });
     }
     return next(error);
