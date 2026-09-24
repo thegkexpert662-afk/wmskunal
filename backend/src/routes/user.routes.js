@@ -394,7 +394,7 @@ router.patch(
           phone = COALESCE($3,phone), employee_code = COALESCE($4,employee_code),
           department = COALESCE($5,department), designation = COALESCE($6,designation),
           role = $7, client_id = $8, password_hash = COALESCE($9,password_hash), updated_at = NOW()
-         WHERE id = $10 RETURNING ${userSelect}`,
+         WHERE id = $10 RETURNING ${userReturning}`,
         [input.email ?? null, input.fullName ?? null, input.phone ?? null, input.employeeCode ?? null,
           input.department ?? null, input.designation ?? null, nextRole, nextClientId, passwordHash, existing.id],
       );
