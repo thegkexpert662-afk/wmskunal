@@ -65,13 +65,17 @@ class _AdminInboundScreenState extends State<AdminInboundScreen> {
               items: [data['item']],
             );
           } else {
-            await inbound.createGrn(
-              grnNo: data['number'],
+            final result = await inbound.createGrn(
               supplierName: data['supplier'],
               invoiceNo: data['invoice'],
               warehouseId: data['warehouseId'],
               items: [data['item']],
             );
+            if (mounted && result['grn_no'] != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('GRN created: ' + result['grn_no'].toString())),
+              );
+            }
           }
         },
       ),
