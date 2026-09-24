@@ -159,7 +159,6 @@ class _InboundDialog extends StatefulWidget {
 }
 
 class _InboundDialogState extends State<_InboundDialog> {
-  final number = TextEditingController();
   final supplier = TextEditingController();
   final invoice = TextEditingController();
   final reference = TextEditingController();
@@ -177,13 +176,13 @@ class _InboundDialogState extends State<_InboundDialog> {
 
   @override
   void dispose() {
-    number.dispose(); supplier.dispose(); invoice.dispose();
+    supplier.dispose(); invoice.dispose();
     reference.dispose(); qty.dispose(); super.dispose();
   }
 
   Future<void> _save() async {
     final q = double.tryParse(qty.text.trim());
-    if (number.text.trim().isEmpty || warehouseId == null || productId == null || q == null || q <= 0) {
+    if (warehouseId == null || productId == null || q == null || q <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields.')));
       return;
     }
@@ -194,7 +193,6 @@ class _InboundDialogState extends State<_InboundDialog> {
     setState(() => saving = true);
     try {
       await widget.onSubmit({
-        'number': number.text.trim(),
         'supplier': supplier.text.trim(),
         'invoice': invoice.text.trim().isEmpty ? null : invoice.text.trim(),
         'reference': reference.text.trim().isEmpty ? null : reference.text.trim(),
@@ -218,8 +216,6 @@ class _InboundDialogState extends State<_InboundDialog> {
         width: 520,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: number, decoration: InputDecoration(labelText: widget.production ? 'Receipt Number *' : 'GRN Number *')),
-            const SizedBox(height: 10),
             if (widget.production) TextField(controller: reference, decoration: const InputDecoration(labelText: 'Production Reference'))
             else ...[
               TextField(controller: supplier, decoration: const InputDecoration(labelText: 'Supplier Name *')),
